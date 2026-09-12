@@ -20,8 +20,10 @@ from app.what_if.providers import (
 )
 from app.what_if.schemas import (
     CandidateLot,
+    CropEvaluation,
     FeatureVector5D,
     ModelMetrics,
+    SAGYP_CROPS_CATALOG,
     SimulationFinancials,
     SimulationResults,
     WhatIfSimulationResponse,
@@ -38,7 +40,7 @@ def compute_content_hash(
     """
     payload_to_hash = {
         "schema_version": "0.1",
-        "algorithm_version": "2.1.0",
+        "algorithm_version": "2.2.0",
         "lot": lot_data,
         "params": params_data,
         "frozen_inputs": frozen_inputs,
@@ -124,21 +126,19 @@ def run_what_if_simulation(
     geometry_data: Any,
     lot_name: str,
     target_year: int,
-    simulated_crop: str,
+    simulated_crop: str | None = None,
     real_crop: str = "soja_1ra",
     real_margin_usd_ha: float = 350.0,
     real_yield_tn_ha: float | None = None,
     field_id: UUID | None = None,
     include_audit: bool = True,
 ) -> WhatIfSimulationResponse:
-    """Ejecuta el pipeline completo del simulador agronómico What-If."""
+    """Ejecuta el pipeline optimizador multicultivo What-If, evaluando los 10 granos del catálogo SAGyP."""
     c_lat, c_lon, surface_ha, bbox = parse_geometry_input(geometry_data)
 
     territory = resolve_territorial_context(c_lat, c_lon)
     dept = territory["department"]
     prov = territory["province"]
-
-    benchmarks = get_official_benchmarks(dept, prov, simulated_crop, target_year)
 
     soil = fetch_soil_data(c_lat, c_lon)
     topo = fetch_topography_slope(c_lat, c_lon)
@@ -164,43 +164,118 @@ def run_what_if_simulation(
         soil_source=soil.get("source"),
     )
 
+    # Generación y selección de lotes gemelos en el radio agronómico
     candidates = generate_spatial_candidates(
         center_lat=c_lat,
         center_lon=c_lon,
         radius_km=50.0,
-        crop=simulated_crop,
+        crop="multicrop",
         count=180,
         base_vector=base_vector,
     )
 
     twin_lots, avg_score = find_twin_lots(base_vector, candidates)
 
-    # Proyección de rendimiento
+    # Factor de delta de vigor ambiental calibrado para el lote
     avg_twins_ndvi = sum(t.vector_5d.f_history_ndvi_max for t in twin_lots) / len(twin_lots)
     delta_ndvi = (avg_twins_ndvi - zone_ndvi) / max(0.2, zone_ndvi)
     delta_clamped = max(-0.35, min(0.35, delta_ndvi))
+    delta_yield_pct = round(delta_clamped * 100.0, 2)
 
-    official_yield = benchmarks["dept_yield_sagyp_tn_ha"]
-    projected_yield = round(official_yield * (1.0 + delta_clamped), 2)
+    # Evaluación iterativa de los 10 cultivos oficiales de la SAGyP
+    evaluations: list[CropEvaluation] = []
+    crops_benchmarks_audit: dict[str, Any] = {}
 
-    price = benchmarks["matba_price_harvest_usd_tn"]
-    cost = benchmarks["bcr_cost_implantacion_usd_ha"]
-    gross_income = round(projected_yield * price, 2)
-    net_margin = round(gross_income - cost, 2)
-    diff_margin = round(net_margin - real_margin_usd_ha, 2)
-    total_lot_diff = round(diff_margin * surface_ha, 2)
+    for crop_id, meta in SAGYP_CROPS_CATALOG.items():
+        benchmarks = get_official_benchmarks(dept, prov, crop_id, target_year)
+        official_yield = benchmarks["dept_yield_sagyp_tn_ha"]
+        projected_yield = round(official_yield * (1.0 + delta_clamped), 2)
 
-    crop_label = benchmarks["crop_label"]
-    if diff_margin > 0:
-        recommendation = (
-            f"Rotación favorable: {crop_label} en {target_year} habría superado el margen real "
-            f"en +USD {diff_margin:.2f}/ha (+USD {total_lot_diff:,.2f} en el total del lote de {surface_ha:.1f} ha)."
+        price = benchmarks["matba_price_harvest_usd_tn"]
+        cost = benchmarks["bcr_cost_implantacion_usd_ha"]
+        gross_income = round(projected_yield * price, 2)
+        net_margin = round(gross_income - cost, 2)
+        diff_margin = round(net_margin - real_margin_usd_ha, 2)
+        total_lot_diff = round(diff_margin * surface_ha, 2)
+
+        crops_benchmarks_audit[crop_id] = {
+            "official_sagyp_yield_tn_ha": official_yield,
+            "projected_yield_tn_ha": projected_yield,
+            "matba_price_usd_tn": price,
+            "bcr_cost_usd_ha": cost,
+            "net_margin_usd_ha": net_margin,
+            "diff_margin_usd_ha": diff_margin,
+        }
+
+        evaluations.append(
+            CropEvaluation(
+                crop_id=crop_id,
+                crop_name=meta.name,
+                category=meta.category,
+                season=meta.season,
+                projected_yield_tn_ha=projected_yield,
+                benchmark_dept_yield_tn_ha=official_yield,
+                delta_yield_pct=delta_yield_pct,
+                financials=SimulationFinancials(
+                    gross_income_usd_ha=gross_income,
+                    costs_usd_ha=cost,
+                    net_margin_usd_ha=net_margin,
+                    real_net_margin_usd_ha=real_margin_usd_ha,
+                    diff_net_margin_usd_ha=diff_margin,
+                    total_lot_diff_usd=total_lot_diff,
+                ),
+                rank_yield=0,
+                rank_margin=0,
+            )
+        )
+
+    # Ordenar y asignar rankings
+    # 1. Ranking de Rendimiento Agronómico (mayor tn/ha primero)
+    evaluations_by_yield = sorted(evaluations, key=lambda x: x.projected_yield_tn_ha, reverse=True)
+    for idx, item in enumerate(evaluations_by_yield, start=1):
+        item.rank_yield = idx
+
+    # 2. Ranking de Margen Neto Financiero (mayor USD/ha primero)
+    evaluations_by_margin = sorted(evaluations, key=lambda x: x.financials.net_margin_usd_ha, reverse=True)
+    for idx, item in enumerate(evaluations_by_margin, start=1):
+        item.rank_margin = idx
+
+    # El ranking final se entrega ordenado por rendimiento proyectado (descendente)
+    ranking = evaluations_by_yield
+    winner_crop = ranking[0]
+    best_margin_crop = evaluations_by_margin[0]
+
+    # Determinación del cultivo foco para 'results' (respetando retrocompatibilidad)
+    effective_crop = simulated_crop.lower().strip() if simulated_crop else winner_crop.crop_id
+    focused_eval = next((c for c in ranking if c.crop_id == effective_crop), winner_crop)
+
+    # Construcción de la recomendación agronómica experta
+    diff_win_usd = winner_crop.financials.diff_net_margin_usd_ha
+    tot_win_usd = winner_crop.financials.total_lot_diff_usd
+
+    rec_parts = [
+        f"Grano Ganador en Rendimiento: {winner_crop.crop_name} lidero la rotacion en {dept} ({prov}) "
+        f"con {winner_crop.projected_yield_tn_ha:.2f} tn/ha (promedio zonal SAGyP: {winner_crop.benchmark_dept_yield_tn_ha:.2f} tn/ha)."
+    ]
+
+    if diff_win_usd >= 0:
+        rec_parts.append(
+            f"Frente a los USD {real_margin_usd_ha:.2f}/ha de {real_crop} cosechado, {winner_crop.crop_name} habria aportado "
+            f"+USD {diff_win_usd:.2f}/ha (+USD {tot_win_usd:,.2f} en las {surface_ha:.1f} ha del lote)."
         )
     else:
-        recommendation = (
-            f"Decisión real acertada: La rotación con {crop_label} en {target_year} habría dejado "
-            f"un margen menor en USD {diff_margin:.2f}/ha (-USD {abs(total_lot_diff):,.2f} en el total del lote)."
+        rec_parts.append(
+            f"Aunque lidero en volumen, su margen neto fue de USD {winner_crop.financials.net_margin_usd_ha:.2f}/ha "
+            f"(USD {diff_win_usd:.2f}/ha respecto a {real_crop})."
         )
+
+    if best_margin_crop.crop_id != winner_crop.crop_id:
+        rec_parts.append(
+            f"Maxima Rentabilidad Financiera: {best_margin_crop.crop_name} obtuvo el mayor margen neto "
+            f"(USD {best_margin_crop.financials.net_margin_usd_ha:.2f}/ha, +USD {best_margin_crop.financials.diff_net_margin_usd_ha:+.2f}/ha vs real)."
+        )
+
+    recommendation = " ".join(rec_parts)
 
     # Insumos congelados para certificación on-chain
     frozen_inputs = {
@@ -216,11 +291,12 @@ def run_what_if_simulation(
         "regional_calibration": {
             "zone_mean_ndvi": zone_ndvi,
             "zone_ndvi_source": regional_ndvi_info.get("source"),
-            "official_sagyp_yield_tn_ha": official_yield,
-            "sagyp_citation": benchmarks["source_yield"],
-            "matba_price_usd_tn": price,
-            "bcr_cost_usd_ha": cost,
+            "delta_yield_pct": delta_yield_pct,
+            "total_crops_evaluated": len(evaluations),
+            "winner_crop_id": winner_crop.crop_id,
+            "best_margin_crop_id": best_margin_crop.crop_id,
         },
+        "crops_benchmarks": crops_benchmarks_audit,
     }
 
     audit_urls = build_audit_urls(c_lat, c_lon, target_year) if include_audit else None
@@ -235,22 +311,27 @@ def run_what_if_simulation(
     }
     params_data = {
         "target_year": target_year,
-        "simulated_crop": simulated_crop,
+        "simulated_crop": simulated_crop or "all_catalog_10",
         "real_crop": real_crop,
         "real_margin_usd_ha": real_margin_usd_ha,
+        "winner_crop": winner_crop.crop_id,
     }
     content_hash = compute_content_hash(lot_data, params_data, frozen_inputs)
 
     return WhatIfSimulationResponse(
         status="success",
         schema_version="0.1",
-        algorithm_version="2.1.0",
+        algorithm_version="2.2.0",
         field_id=field_id,
         lot_name=lot_name,
         surface_ha=surface_ha,
         target_year=target_year,
-        simulated_crop=simulated_crop,
+        simulated_crop=simulated_crop or winner_crop.crop_id,
         real_crop=real_crop,
+        winner_crop=winner_crop,
+        best_margin_crop=best_margin_crop,
+        total_crops_evaluated=len(evaluations),
+        ranking=ranking,
         content_hash=content_hash,
         model_metrics=ModelMetrics(
             candidate_lots_scanned=len(candidates),
@@ -266,16 +347,9 @@ def run_what_if_simulation(
             zone_mean_ndvi=zone_ndvi,
         ),
         results=SimulationResults(
-            projected_yield_tn_ha=projected_yield,
-            benchmark_dept_yield_tn_ha=official_yield,
-            financials=SimulationFinancials(
-                gross_income_usd_ha=gross_income,
-                costs_usd_ha=cost,
-                net_margin_usd_ha=net_margin,
-                real_net_margin_usd_ha=real_margin_usd_ha,
-                diff_net_margin_usd_ha=diff_margin,
-                total_lot_diff_usd=total_lot_diff,
-            ),
+            projected_yield_tn_ha=focused_eval.projected_yield_tn_ha,
+            benchmark_dept_yield_tn_ha=focused_eval.benchmark_dept_yield_tn_ha,
+            financials=focused_eval.financials,
             recommendation=recommendation,
         ),
         audit_urls=audit_urls,

@@ -40,12 +40,11 @@ def test_field_coupled_simulation() -> None:
     assert create_resp.status_code == 201
     field_id = create_resp.json()["id"]
 
-    # 2. Ejecutar simulación What-If acoplada al campo
+    # 2. Ejecutar simulación What-If acoplada al campo (sin forzar simulated_crop para optimización global)
     sim_resp = client.post(
         f"/v1/fields/{field_id}/simulations/what-if",
         json={
             "target_year": 2023,
-            "simulated_crop": "maiz",
             "real_crop": "soja_1ra",
             "real_margin_usd_ha": 350.0,
             "include_audit": True,
@@ -56,10 +55,31 @@ def test_field_coupled_simulation() -> None:
 
     assert res["status"] == "success"
     assert res["schema_version"] == "0.1"
-    assert res["algorithm_version"] == "2.1.0"
+    assert res["algorithm_version"] == "2.2.0"
     assert res["lot_name"] == "Campo Federación Test"
     assert res["surface_ha"] > 80.0  # El polígono tiene ~87.2 ha
-    assert res["simulated_crop"] == "maiz"
+
+    # Verificación del grano ganador en rendimiento y multi-cultivo
+    assert res["total_crops_evaluated"] == 10
+    assert len(res["ranking"]) == 10
+
+    winner = res["winner_crop"]
+    assert winner["crop_id"] == "maiz"  # Maíz es el grano con mayor rinde en Federación
+    assert winner["rank_yield"] == 1
+    assert winner["projected_yield_tn_ha"] > 4.5
+    assert winner["financials"]["gross_income_usd_ha"] > 0
+
+    best_margin = res["best_margin_crop"]
+    assert best_margin["rank_margin"] == 1
+    assert "financials" in best_margin
+
+    # Verificación de ordenamiento del ranking por rendimiento proyectado
+    prev_yield = float("inf")
+    for item in res["ranking"]:
+        assert item["projected_yield_tn_ha"] <= prev_yield
+        prev_yield = item["projected_yield_tn_ha"]
+        assert 1 <= item["rank_yield"] <= 10
+        assert 1 <= item["rank_margin"] <= 10
 
     # Verificación de métricas del modelo y Lotes Gemelos
     metrics = res["model_metrics"]
@@ -113,7 +133,6 @@ def test_standalone_simulation() -> None:
                 ],
             },
             "target_year": 2023,
-            "simulated_crop": "soja_1ra",
             "real_crop": "maiz",
             "real_margin_usd_ha": 600.0,
         },
@@ -122,6 +141,9 @@ def test_standalone_simulation() -> None:
     res = response.json()
     assert res["status"] == "success"
     assert res["lot_name"] == "Lote Ad-Hoc Marcos Juárez"
+    assert res["total_crops_evaluated"] == 10
+    assert res["winner_crop"]["crop_id"] == "maiz"
+    assert len(res["ranking"]) == 10
     assert len(res["content_hash"]) == 64
 
 

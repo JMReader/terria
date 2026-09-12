@@ -128,10 +128,24 @@ class CandidateLot(StrictModel):
 # --- Solicitudes a la API ---
 
 
+class CropEvaluation(StrictModel):
+    """Evaluación individualizada para cada cultivo del catálogo oficial."""
+    crop_id: str = Field(..., description="Identificador único del cultivo (ej: maiz, soja_1ra, trigo)")
+    crop_name: str = Field(..., description="Nombre oficial del cultivo")
+    category: str = Field(..., description="Categoría agronómica: Cereal, Oleaginosa, Especialidad, Industrial")
+    season: str = Field(..., description="Estación de siembra: Gruesa o Fina")
+    projected_yield_tn_ha: float = Field(..., description="Rendimiento proyectado para el lote (tn/ha)")
+    benchmark_dept_yield_tn_ha: float = Field(..., description="Rendimiento histórico oficial SAGyP del departamento")
+    delta_yield_pct: float = Field(..., description="Variación porcentual respecto al promedio departamental")
+    financials: SimulationFinancials = Field(..., description="Métricas de ingresos, costos y margen neto")
+    rank_yield: int = Field(..., description="Posición en el ranking de rendimiento (1 = mayor rinde)")
+    rank_margin: int = Field(..., description="Posición en el ranking de margen neto (1 = mayor ganancia)")
+
+
 class FieldWhatIfRequest(StrictModel):
     """Parámetros para ejecutar simulación sobre un campo persistido."""
     target_year: int = Field(2023, ge=2015, le=2030, description="Campaña agronómica analizada")
-    simulated_crop: str = Field("maiz", description="Cultivo contrafáctico a evaluar")
+    simulated_crop: str | None = Field(None, description="Cultivo específico a contrastar (opcional, evalúa los 10 granos)")
     real_crop: str = Field("soja_1ra", description="Cultivo cosechado en la realidad")
     real_margin_usd_ha: float | None = Field(350.0, description="Margen neto real obtenido (USD/ha)")
     real_yield_tn_ha: float | None = Field(None, description="Rendimiento real cosechado (tn/ha)")
@@ -147,7 +161,7 @@ class WhatIfSimulateRequest(StrictModel):
     centroid_lon: float | None = None
     area_hectares: float | None = None
     target_year: int = Field(2023, ge=2015, le=2030)
-    simulated_crop: str = Field("maiz")
+    simulated_crop: str | None = Field(None, description="Cultivo específico a contrastar (opcional, evalúa los 10 granos)")
     real_crop: str = Field("soja_1ra")
     real_margin_usd_ha: float = Field(350.0)
     real_yield_tn_ha: float | None = None
@@ -184,13 +198,17 @@ class SimulationResults(StrictModel):
 class WhatIfSimulationResponse(StrictModel):
     status: Literal["success"] = "success"
     schema_version: str = "0.1"
-    algorithm_version: str = "2.1.0"
+    algorithm_version: str = "2.2.0"
     field_id: UUID | None = None
     lot_name: str
     surface_ha: float
     target_year: int
-    simulated_crop: str
+    simulated_crop: str | None = None
     real_crop: str
+    winner_crop: CropEvaluation
+    best_margin_crop: CropEvaluation
+    total_crops_evaluated: int = 10
+    ranking: list[CropEvaluation]
     content_hash: str
     model_metrics: ModelMetrics
     results: SimulationResults

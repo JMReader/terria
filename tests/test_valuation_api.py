@@ -146,3 +146,34 @@ def test_valuation_custom_horizon_10_years() -> None:
     assert v["total_appreciation_percentage"] > 25.0
 
 
+def test_valuation_cli_preset(monkeypatch) -> None:
+    from app.valuation.cli import main
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "--preset", "marcos_juarez", "--offline", "--years", "5"])
+    # Debe ejecutarse sin lanzar excepciones
+    main()
+
+
+def test_valuation_cli_compare_all(monkeypatch) -> None:
+    from app.valuation.cli import main
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "--compare-all", "--offline", "--years", "5"])
+    main()
+
+
+def test_valuation_cli_json_output(monkeypatch, capsys) -> None:
+    from app.valuation.cli import main
+    import json
+    import sys
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "--preset", "pergamino", "--offline", "--json"])
+    main()
+    captured = capsys.readouterr()
+    parsed = json.loads(captured.out)
+    assert parsed["status"] == "success"
+    assert "valuation" in parsed
+
+
+
