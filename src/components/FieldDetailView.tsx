@@ -12,6 +12,7 @@ import WeatherDailyCard from "@/components/timelapse/WeatherDailyCard";
 import NdviSparklineChart from "@/components/timelapse/NdviSparklineChart";
 import SolanaAuditCard from "@/components/certification/SolanaAuditCard";
 import ValuationPanel from "@/components/valuation/ValuationPanel";
+import WhatIfPanel from "@/components/what_if/WhatIfPanel";
 
 gsap.registerPlugin(useGSAP);
 
@@ -31,7 +32,7 @@ export default function FieldDetailView({
   isIsolated3D = false,
   sharedTimelapse,
 }: FieldDetailViewProps) {
-  const [activeTab, setActiveTab] = useState<"summary" | "timelapse" | "future" | "audit">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "timelapse" | "what_if" | "future" | "audit">("summary");
   const containerRef = useRef<HTMLDivElement>(null);
   const tabContentRef = useRef<HTMLDivElement>(null);
 
@@ -130,7 +131,7 @@ export default function FieldDetailView({
         </div>
 
         {/* Minimalist Segmented Tab Switcher */}
-        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-nube p-1 border border-piedra-soft text-[11px] font-mono font-bold">
+        <div className="grid grid-cols-5 gap-1 rounded-2xl bg-nube p-1 border border-piedra-soft text-[10px] sm:text-[11px] font-mono font-bold">
           <button
             onClick={() => setActiveTab("summary")}
             className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
@@ -150,6 +151,16 @@ export default function FieldDetailView({
             }`}
           >
             Timelapse
+          </button>
+          <button
+            onClick={() => setActiveTab("what_if")}
+            className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
+              activeTab === "what_if"
+                ? "bg-papel text-bosque shadow-xs border border-piedra-soft font-bold"
+                : "text-piedra hover:text-bosque"
+            }`}
+          >
+            What-If
           </button>
           <button
             onClick={() => setActiveTab("future")}
@@ -308,7 +319,10 @@ export default function FieldDetailView({
             </>
           )}
 
-          {/* TAB 3: FUTURO — proyección de valor de tierra */}
+          {/* TAB 3: WHAT-IF — simulador contrafáctico multicultivo */}
+          {activeTab === "what_if" && <WhatIfPanel field={field} />}
+
+          {/* TAB 4: FUTURO — proyección de valor de tierra */}
           {activeTab === "future" && <ValuationPanel field={field} />}
 
           {/* TAB 4: AUDITORÍA SOLANA */}

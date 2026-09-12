@@ -6,6 +6,12 @@ import {
   TimelapseSource,
 } from "@/types/terria";
 import { LandValuation } from "@/types/valuation";
+import {
+  WhatIfSimulation,
+  CropEvaluation,
+  FieldWhatIfRequest,
+  StandaloneWhatIfRequest,
+} from "@/types/whatIf";
 
 /**
  * Cliente liviano para la API FastAPI de TERRIA + adaptador del contrato
@@ -14,7 +20,7 @@ import { LandValuation } from "@/types/valuation";
  */
 
 export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8001"
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
 /** Campo real del backend usado para el timelapse en vivo (Establecimiento La Posta — demo pública). */
@@ -395,3 +401,169 @@ export async function fetchFieldValuation(
   const raw = "valuation" in body ? body.valuation : body;
   return adaptValuation(raw);
 }
+
+/* ---------- Simulador What-If Multicultivo (spec feature-2-what-if v2.2) ---------- */
+
+interface ApiCropEvaluation {
+  crop_id: string;
+  crop_name: string;
+  category: string;
+  season: string;
+  projected_yield_tn_ha: number;
+  benchmark_dept_yield_tn_ha: number;
+  delta_yield_pct: number;
+  financials: {
+    gross_income_usd_ha: number;
+    costs_usd_ha: number;
+    net_margin_usd_ha: number;
+    real_net_margin_usd_ha: number;
+    diff_net_margin_usd_ha: number;
+    total_lot_diff_usd: number;
+  };
+  rank_yield: number;
+  rank_margin: number;
+}
+
+interface ApiWhatIfSimulation {
+  status: string;
+  schema_version: string;
+  algorithm_version: string;
+  field_id?: string | null;
+  lot_name: string;
+  surface_ha: number;
+  target_year: number;
+  simulated_crop?: string | null;
+  real_crop: string;
+  winner_crop: ApiCropEvaluation;
+  best_margin_crop: ApiCropEvaluation;
+  total_crops_evaluated: number;
+  ranking: ApiCropEvaluation[];
+  content_hash: string;
+  model_metrics: {
+    candidate_lots_scanned: number;
+    strict_twin_lots_matched: number;
+    avg_similarity_score: number;
+    dimensions_analyzed: string[];
+    zone_mean_ndvi: number;
+  };
+  results: {
+    projected_yield_tn_ha: number;
+    benchmark_dept_yield_tn_ha: number;
+    financials: ApiCropEvaluation["financials"];
+    recommendation: string;
+  };
+  audit_urls?: Record<string, string>;
+  frozen_inputs?: Record<string, unknown>;
+}
+
+function adaptCropEvaluation(raw: ApiCropEvaluation): CropEvaluation {
+  return {
+    cropId: raw.crop_id,
+    cropName: raw.crop_name,
+    category: raw.category,
+    season: raw.season,
+    projectedYieldTnHa: raw.projected_yield_tn_ha,
+    benchmarkDeptYieldTnHa: raw.benchmark_dept_yield_tn_ha,
+    deltaYieldPct: raw.delta_yield_pct,
+    financials: {
+      grossIncomeUsdHa: raw.financials.gross_income_usd_ha,
+      costsUsdHa: raw.financials.costs_usd_ha,
+      netMarginUsdHa: raw.financials.net_margin_usd_ha,
+      realNetMarginUsdHa: raw.financials.real_net_margin_usd_ha,
+      diffNetMarginUsdHa: raw.financials.diff_net_margin_usd_ha,
+      totalLotDiffUsd: raw.financials.total_lot_diff_usd,
+    },
+    rankYield: raw.rank_yield,
+    rankMargin: raw.rank_margin,
+  };
+}
+
+export function adaptWhatIf(raw: ApiWhatIfSimulation): WhatIfSimulation {
+  return {
+    status: raw.status,
+    schemaVersion: raw.schema_version,
+    algorithmVersion: raw.algorithm_version,
+    fieldId: raw.field_id,
+    lotName: raw.lot_name,
+    surfaceHa: raw.surface_ha,
+    targetYear: raw.target_year,
+    simulatedCrop: raw.simulated_crop,
+    realCrop: raw.real_crop,
+    winnerCrop: adaptCropEvaluation(raw.winner_crop),
+    bestMarginCrop: adaptCropEvaluation(raw.best_margin_crop),
+    totalCropsEvaluated: raw.total_crops_evaluated,
+    ranking: (raw.ranking || []).map(adaptCropEvaluation),
+    contentHash: raw.content_hash,
+    modelMetrics: {
+      candidateLotsScanned: raw.model_metrics.candidate_lots_scanned,
+      strictTwinLotsMatched: raw.model_metrics.strict_twin_lots_matched,
+      avgSimilarityScore: raw.model_metrics.avg_similarity_score,
+      dimensionsAnalyzed: raw.model_metrics.dimensions_analyzed,
+      zoneMeanNdvi: raw.model_metrics.zone_mean_ndvi,
+    },
+    results: {
+      projectedYieldTnHa: raw.results.projected_yield_tn_ha,
+      benchmarkDeptYieldTnHa: raw.results.benchmark_dept_yield_tn_ha,
+      financials: {
+        grossIncomeUsdHa: raw.results.financials.gross_income_usd_ha,
+        costsUsdHa: raw.results.financials.costs_usd_ha,
+        netMarginUsdHa: raw.results.financials.net_margin_usd_ha,
+        realNetMarginUsdHa: raw.results.financials.real_net_margin_usd_ha,
+        diffNetMarginUsdHa: raw.results.financials.diff_net_margin_usd_ha,
+        totalLotDiffUsd: raw.results.financials.total_lot_diff_usd,
+      },
+      recommendation: raw.results.recommendation,
+    },
+    auditUrls: raw.audit_urls ?? {},
+    frozenInputs: raw.frozen_inputs ?? {},
+  };
+}
+
+export async function fetchFieldWhatIf(
+  fieldId: string,
+  req: FieldWhatIfRequest
+): Promise<WhatIfSimulation> {
+  const raw = await fetchJson<ApiWhatIfSimulation>(
+    `${API_BASE}/v1/fields/${fieldId}/simulations/what-if`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target_year: req.targetYear,
+        simulated_crop: req.simulatedCrop ?? null,
+        real_crop: req.realCrop,
+        real_margin_usd_ha: req.realMarginUsdHa ?? 350.0,
+        real_yield_tn_ha: req.realYieldTnHa ?? null,
+        include_audit: req.includeAudit ?? true,
+      }),
+    }
+  );
+  return adaptWhatIf(raw);
+}
+
+export async function fetchStandaloneWhatIf(
+  req: StandaloneWhatIfRequest
+): Promise<WhatIfSimulation> {
+  const raw = await fetchJson<ApiWhatIfSimulation>(
+    `${API_BASE}/v1/simulations/what-if`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: req.name ?? "Lote Simulado",
+        centroid_lat: req.centroidLat,
+        centroid_lon: req.centroidLon,
+        area_hectares: req.areaHectares,
+        coordinates: req.coordinates,
+        target_year: req.targetYear,
+        simulated_crop: req.simulatedCrop ?? null,
+        real_crop: req.realCrop,
+        real_margin_usd_ha: req.realMarginUsdHa ?? 350.0,
+        real_yield_tn_ha: req.realYieldTnHa ?? null,
+        include_audit: req.includeAudit ?? true,
+      }),
+    }
+  );
+  return adaptWhatIf(raw);
+}
+
