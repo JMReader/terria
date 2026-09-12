@@ -62,14 +62,14 @@ class LocalAnchorProvider:
             [instruction], self._issuer.pubkey(), [self._issuer], blockhash
         )
         meta = self._svm.send_transaction(transaction)
-        signature = str(meta.signature)
+        signature = str(meta.signature())
         self._memos[signature] = memo
         return AnchorResult(
             provider=self.name,
             cluster=self.cluster,
             memo=memo,
             tx_signature=signature,
-            logs=list(meta.logs),
+            logs=list(meta.logs()),
         )
 
     def fetch_memo(self, tx_signature: str) -> str | None:
@@ -106,6 +106,7 @@ class DevnetAnchorProvider:
 
     def anchor(self, memo: str) -> AnchorResult:
         from solana.rpc.commitment import Confirmed
+        from solana.rpc.models import TxOpts
         from solders.instruction import Instruction
         from solders.pubkey import Pubkey
         from solders.transaction import Transaction
@@ -113,11 +114,24 @@ class DevnetAnchorProvider:
         client = self._client()
         program = Pubkey.from_string(self._program_id)
         instruction = Instruction(program, memo.encode("utf-8"), [])
-        blockhash = client.get_latest_blockhash(commitment=Confirmed).value.blockhash
-        transaction = Transaction.new_signed_with_payer(
-            [instruction], self._issuer.pubkey(), [self._issuer], blockhash
-        )
-        response = client.send_transaction(transaction)
+
+        response = None
+        last_error: Exception | None = None
+        for _ in range(3):
+            blockhash = client.get_latest_blockhash(commitment=Confirmed).value.blockhash
+            transaction = Transaction.new_signed_with_payer(
+                [instruction], self._issuer.pubkey(), [self._issuer], blockhash
+            )
+            try:
+                response = client.send_transaction(
+                    transaction,
+                    opts=TxOpts(skip_preflight=True, preflight_commitment=Confirmed),
+                )
+                break
+            except Exception as exc:  # noqa: BLE001 - public RPCs drop stale blockhashes
+                last_error = exc
+        if response is None:
+            raise last_error or RuntimeError("could not send the anchor transaction")
         client.confirm_transaction(response.value, commitment=Confirmed)
 
         slot: int | None = None
@@ -145,15 +159,21 @@ class DevnetAnchorProvider:
         )
 
     def fetch_memo(self, tx_signature: str) -> str | None:
+        from solders.signature import Signature
+
         client = self._client()
-        info = client.get_transaction(tx_signature, max_supported_transaction_version=0).value
+        info = client.get_transaction(
+            Signature.from_string(tx_signature),
+            encoding="base64",
+            max_supported_transaction_version=0,
+        ).value
         if info is None:
             return None
-        return extract_memo(info, self._program_id)
+        return extract_memo(info.transaction.transaction, self._program_id)
 
 
-def extract_memo(tx_info, program_id: str) -> str | None:  # noqa: ANN001 - solders EncodedTransaction
-    message = tx_info.transaction.message
+def extract_memo(transaction, program_id: str) -> str | None:  # noqa: ANN001 - solders VersionedTransaction
+    message = transaction.message
     account_keys = [str(key) for key in message.account_keys]
     for instruction in message.instructions:
         if account_keys[instruction.program_id_index] == program_id:
