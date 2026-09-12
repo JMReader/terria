@@ -9,7 +9,7 @@ import time
 from typing import Any
 from uuid import UUID
 
-from app.store import SQLiteFieldStore, get_field_store
+from app.store import get_field_store
 from app.what_if.engine import run_what_if_simulation
 from app.what_if.geometry import parse_geometry_input
 from app.what_if.router import verify_simulation_truth
@@ -303,19 +303,19 @@ def run_interactive_what_if_wizard() -> None:
     # FASE 3: Vector 5D
     print(f"\n{S.BRIGHT_CYAN}─── [FASE 3/8] 🧬 CONSTRUCCIÓN DEL VECTOR BIOFÍSICO 5D ───{S.RESET}")
     print(f"  {S.DIM}El vector resume las condiciones biofísicas del lote para buscar gemelos agronómicos:{S.RESET}")
-    print(f"  Vector v = [")
+    print("  Vector v = [")
     print(f"    f_arcilla:       {env.get('soil_clay_pct', 26.6):>6.1f} %")
     print(f"    f_arena:         {env.get('soil_sand_pct', 9.9):>6.1f} %")
     print(f"    f_pendiente:     {env.get('mean_slope_deg', 0.40):>6.2f} °")
     print(f"    f_radar_humedad: {env.get('radar_backscatter_db', -17.40):>6.2f} dB")
     print(f"    f_bal_hidrico:   {env.get('water_balance_mm', -670.0):>6.1f} mm")
     print(f"    f_ndvi_max:      {env.get('historical_ndvi_max', 0.4262):>6.4f}")
-    print(f"  ]")
+    print("  ]")
     time.sleep(0.15)
 
     # FASE 4: Algoritmo Twin Lots
     print(f"\n{S.BRIGHT_CYAN}─── [FASE 4/8] 👥 EMPAREJAMIENTO DE LOTES MELLIZOS (TWIN LOTS) ───{S.RESET}")
-    print(f"  • Radio de Búsqueda Espacial:  50 km circundantes en la cuenca agrícola")
+    print("  • Radio de Búsqueda Espacial:  50 km circundantes en la cuenca agrícola")
     print(f"  • Candidatos Escaneados:       {metrics.candidate_lots_scanned} parcelas agrícolas georreferenciadas")
     print(f"  • Métrica de Distancia:        {S.BOLD}Similitud Coseno (Cosine Similarity){S.RESET} sobre espacio 5D normalizado:")
     print(f"                                 {S.DIM}Sim(A, B) = (A · B) / (||A|| × ||B||){S.RESET}")
@@ -336,9 +336,9 @@ def run_interactive_what_if_wizard() -> None:
     print(f"  • {S.BOLD}1. Rendimientos Departamentales:{S.RESET} Secretaría de Agricultura, Ganadería y Pesca ({S.BOLD}SAGyP{S.RESET})")
     print(f"     Datos oficiales históricos reales de la campaña {target_year} para Dpto. {dept_name}, {prov_name}.")
     print(f"  • {S.BOLD}2. Precios a Término de Cosecha:{S.RESET} Mercado a Término de Buenos Aires y Rosario ({S.BOLD}MATba ROFEX{S.RESET})")
-    print(f"     Cotizaciones oficiales fijadas para entrega en época de cosecha.")
+    print("     Cotizaciones oficiales fijadas para entrega en época de cosecha.")
     print(f"  • {S.BOLD}3. Estructura de Costos:{S.RESET}         Bolsa de Comercio de Rosario ({S.BOLD}BCR GEA{S.RESET})")
-    print(f"     Costos directos de implantación, semilla, agroquímicos y labores por hectárea.")
+    print("     Costos directos de implantación, semilla, agroquímicos y labores por hectárea.")
     time.sleep(0.15)
 
     # FASE 7: Simulación Multicultivo

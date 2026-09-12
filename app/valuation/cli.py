@@ -173,34 +173,36 @@ def render_single_valuation(res: Any, include_audit: bool = True) -> None:
 
     print(f"{S.BRIGHT_CYAN}┌─ ⚙️  DESGLOSE DE LOS 3 MOTORES DE VALOR (DRIVERS) {'─' * (width - 50)}┐{S.RESET}")
 
-    # Driver 1: Vial
+    # Driver 1: Resiliencia Hídrica & Conectividad Logística
     print(f"{S.BRIGHT_CYAN}│{S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}1. 🛣️  INFRAESTRUCTURA VIAL & LOGÍSTICA{S.RESET}  {S.DIM}(M_log = {log.multiplier:.4f}x){S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}1. 💧 RESILIENCIA HÍDRICA & LOGÍSTICA (NAPA FREÁTICA INTA){S.RESET}  {S.DIM}(M_hyd_log = {log.multiplier:.4f}x){S.RESET}")
     print(f"{S.BRIGHT_CYAN}│{S.RESET}     Impacto: {_render_bar(log.impact_percentage, 15.0)}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Distancia actual al asfalto:      {log.distance_to_current_paved_km:.1f} km")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Distancia con nueva traza vial:   {log.distance_to_future_paved_km:.1f} km {S.BRIGHT_GREEN}(Ahorro: {log.distance_saved_km:.1f} km){S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle:{S.RESET} {log.detail}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Distancia a red troncal pavimentada: {log.distance_to_current_paved_km:.1f} km")
+    if log.distance_saved_km > 0:
+        print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Traza vial alternativa en radio 50km: {log.distance_to_future_paved_km:.1f} km {S.BRIGHT_GREEN}(Ahorro: {log.distance_saved_km:.1f} km){S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle agronómico-hídrico:{S.RESET} {log.detail}")
 
-    # Driver 2: Agronómico
+    # Driver 2: Salud del Suelo & Biomasa Satelital NDVI
     print(f"{S.BRIGHT_CYAN}│{S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}2. 🌾 PRODUCTIVIDAD AGRONÓMICA & GENÉTICA (SAGyP 15 AÑOS){S.RESET}  {S.DIM}(M_agro = {agro.multiplier:.4f}x){S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}2. 🌾 SALUD DEL SUELO & VIGOR SATELITAL (SENTINEL-2 NDVI){S.RESET}  {S.DIM}(M_soil_ndvi = {agro.multiplier:.4f}x){S.RESET}")
     print(f"{S.BRIGHT_CYAN}│{S.RESET}     Impacto: {_render_bar(agro.impact_percentage, 15.0)}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • CAGR histórico departamental:     {S.BRIGHT_CYAN}+{agro.cagr_annual_pct:.2f}% / año{S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Factor de traslado al suelo:      0.80 (80% del rinde capitaliza en tierra)")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle:{S.RESET} {agro.detail}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • CAGR rinde regional SAGyP 15a:    {S.BRIGHT_CYAN}+{agro.cagr_annual_pct:.2f}% / año{S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Elasticidad agraria Ricardo-Thünen: 0.52 (Traslado neto a la tierra)")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle edafológico:{S.RESET} {agro.detail}")
 
-    # Driver 3: Mercado
+    # Driver 3: Ciclo de Renta & Mercado Rural
     print(f"{S.BRIGHT_CYAN}│{S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}3. 📈 MERCADO INMOBILIARIO RURAL (REFUGIO EN USD){S.RESET}  {S.DIM}(M_mkt = {mkt.multiplier:.4f}x){S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}  {S.BOLD}3. 📈 CICLO DE RENTA & CAPITALIZACIÓN RURAL (CAIR / BCR){S.RESET}  {S.DIM}(M_rent_mkt = {mkt.multiplier:.4f}x){S.RESET}")
     print(f"{S.BRIGHT_CYAN}│{S.RESET}     Impacto: {_render_bar(mkt.impact_percentage, 20.0)}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Tasa macro de apreciación base:   {S.BRIGHT_CYAN}+{mkt.annual_rate_pct:.2f}% / año compuesto{S.RESET}")
-    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle:{S.RESET} {mkt.detail}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Tasa compuesta de apreciación en USD: {S.BRIGHT_CYAN}+{mkt.annual_rate_pct:.2f}% / año{S.RESET}")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • Capitalización de renta:            Estándar CAIR/BCR al 2.85% anual")
+    print(f"{S.BRIGHT_CYAN}│{S.RESET}     • {S.DIM}Detalle financiero:{S.RESET} {mkt.detail}")
     print(f"{S.BRIGHT_CYAN}│{S.RESET}")
     print(f"{S.BRIGHT_CYAN}└{'─' * (width - 2)}┘{S.RESET}\n")
 
     # 3. Ecuación Matemática Integral
     print(f"{S.WHITE}┌─ 📐 ECUACIÓN INTEGRAL DE VALUACIÓN {'─' * (width - 36)}┐{S.RESET}")
-    print(f"{S.WHITE}│{S.RESET}  Fórmula:  {S.BOLD}Valor_Proyectado = V0 × M_log × M_agro × M_mkt{S.RESET}")
+    print(f"{S.WHITE}│{S.RESET}  Fórmula:  {S.BOLD}Valor_Proyectado = V0 × M_hyd_log × M_soil_ndvi × M_rent_mkt{S.RESET}")
     print(
         f"{S.WHITE}│{S.RESET}  Cálculo:  {S.BRIGHT_GREEN}{_fmt_usd(v.projected_value_usd_ha)}{S.RESET} = "
         f"{_fmt_usd(v.base_value_usd_ha)} × {log.multiplier:.4f} × {agro.multiplier:.4f} × {mkt.multiplier:.4f}"
@@ -252,9 +254,9 @@ def compare_all_presets(years: int = 5, allow_network: bool = True) -> None:
             "ha": f"{p['ha']:.0f} ha",
             "base_ha": f"${v.base_value_usd_ha:,.0f}",
             "proj_ha": f"${v.projected_value_usd_ha:,.0f}",
-            "m_log": f"{v.drivers_breakdown.logistic_improvement.multiplier:.3f}x",
-            "m_agro": f"{v.drivers_breakdown.agronomic_trend.multiplier:.3f}x",
-            "m_mkt": f"{v.drivers_breakdown.market_appreciation.multiplier:.3f}x",
+            "m_hyd": f"{v.drivers_breakdown.logistic_improvement.multiplier:.3f}x",
+            "m_soil": f"{v.drivers_breakdown.agronomic_trend.multiplier:.3f}x",
+            "m_rent": f"{v.drivers_breakdown.market_appreciation.multiplier:.3f}x",
             "roi": f"+{v.total_appreciation_percentage:.1f}%",
             "gain_total": f"${v.financial_totals.total_capital_gain_usd / 1000:,.1f}k",
         })
@@ -264,9 +266,9 @@ def compare_all_presets(years: int = 5, allow_network: bool = True) -> None:
         ("Sup (ha)", 10, ">"),
         ("Base USD/ha", 12, ">"),
         ("Proy USD/ha", 12, ">"),
-        ("M_log", 8, ">"),
-        ("M_agro", 8, ">"),
-        ("M_mkt", 8, ">"),
+        ("M_hyd", 8, ">"),
+        ("M_soil", 8, ">"),
+        ("M_rent", 8, ">"),
         ("ROI %", 9, ">"),
         ("Ganancia Lote", 15, ">"),
     ]
@@ -287,16 +289,16 @@ def compare_all_presets(years: int = 5, allow_network: bool = True) -> None:
         c2 = f"{r['ha']:>10}"
         c3 = f"{r['base_ha']:>12}"
         c4 = f"{S.BRIGHT_GREEN}{r['proj_ha']:>12}{S.RESET}"
-        c5 = f"{r['m_log']:>8}"
-        c6 = f"{r['m_agro']:>8}"
-        c7 = f"{r['m_mkt']:>8}"
+        c5 = f"{r['m_hyd']:>8}"
+        c6 = f"{r['m_soil']:>8}"
+        c7 = f"{r['m_rent']:>8}"
         c8 = f"{S.BRIGHT_CYAN}{S.BOLD}{r['roi']:>9}{S.RESET}"
         c9 = f"{S.BRIGHT_GREEN}{r['gain_total']:>15}{S.RESET}"
         row_str = f"│ {c1} │ {c2} │ {c3} │ {c4} │ {c5} │ {c6} │ {c7} │ {c8} │ {c9} │"
         print(row_str)
 
     print(f"{S.BOLD}{bot_border}{S.RESET}")
-    print(f"\n{S.DIM}* Nota: M_log = Multiplicador Logístico Vial, M_agro = Tendencia Agronómica SAGyP, M_mkt = Inflación Mercado USD.{S.RESET}\n")
+    print(f"\n{S.DIM}* Nota: M_hyd = Resiliencia Hídrica & Napa Freática INTA, M_soil = Salud del Suelo & Satélite NDVI, M_rent = Ciclo de Renta & Capitalización CAIR/BCR.{S.RESET}\n")
 
 
 def run_interactive_wizard() -> None:
@@ -447,13 +449,13 @@ def run_interactive_wizard() -> None:
         base_info = fetch_base_land_value(c_lat, c_lon, allow_network=allow_network)
         print(f" {S.BRIGHT_GREEN}✓{S.RESET} {S.DIM}(Dpto. {base_info.get('department')}, Base: USD {base_info.get('base_value_usd_ha'):,.2f}/ha){S.RESET}")
 
-        print(f"  {S.CYAN}[2/4] 🛣️  Analizando Infraestructura Vial en 50 km (OSM)...{S.RESET}", end="", flush=True)
+        print(f"  {S.CYAN}[2/4] 💧 Analizando Cota de Napa Freática (INTA) y Red Vial...{S.RESET}", end="", flush=True)
         log_driver = calculate_logistic_multiplier(c_lat, c_lon, allow_network=allow_network)
-        print(f" {S.BRIGHT_GREEN}✓{S.RESET} {S.DIM}(Impacto logístico: {log_driver.impact_percentage:+.1f}%, Factor: {log_driver.multiplier:.3f}x){S.RESET}")
+        print(f" {S.BRIGHT_GREEN}✓{S.RESET} {S.DIM}(Resiliencia hídrica: {log_driver.impact_percentage:+.1f}%, Factor: {log_driver.multiplier:.3f}x){S.RESET}")
 
-        print(f"  {S.CYAN}[3/4] 🌾 Procesando 15 Años de Series Históricas SAGyP...{S.RESET}", end="", flush=True)
+        print(f"  {S.CYAN}[3/4] 🌾 Evaluando Salud de Suelo y Series Satelitales NDVI (SAGyP)...{S.RESET}", end="", flush=True)
         agro_driver = calculate_agronomic_multiplier(c_lat, c_lon, projection_years, allow_network=allow_network)
-        print(f" {S.BRIGHT_GREEN}✓{S.RESET} {S.DIM}(CAGR anual: +{agro_driver.cagr_annual_pct:.2f}%, Factor: {agro_driver.multiplier:.3f}x){S.RESET}")
+        print(f" {S.BRIGHT_GREEN}✓{S.RESET} {S.DIM}(Salud edafológica: {agro_driver.impact_percentage:+.1f}%, Factor: {agro_driver.multiplier:.3f}x){S.RESET}")
 
         print(f"  {S.CYAN}[4/4] 🔐 Componiendo Ecuación, ROI y Certificado SHA-256...{S.RESET}", end="", flush=True)
         res = run_land_valuation_projection(

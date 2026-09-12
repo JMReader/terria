@@ -62,6 +62,19 @@ REGIONAL_DEPARTMENTS_DB: list[dict[str, Any]] = [
     },
     {
         "province": "Cordoba",
+        "department": "Rio Segundo",
+        "region": "Pampa Central Cordobesa",
+        "bbox": [-64.2, -32.2, -63.2, -31.4],
+        "soil": {
+            "order": "Haplustol",
+            "clay_pct": 20.0,
+            "sand_pct": 34.0,
+            "silt_pct": 46.0,
+            "class": "Franco Limoso (Haplustol Tipico Serie Manfredi)",
+        },
+    },
+    {
+        "province": "Cordoba",
         "department": "Rio Cuarto",
         "region": "Pampa Arenosa Cordobesa",
         "bbox": [-65.3, -34.0, -63.8, -32.6],

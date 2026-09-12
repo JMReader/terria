@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import math
 from typing import Any
+import unicodedata
 
 import httpx
 
 from app.valuation.schemas import LogisticDriver
+from app.what_if.territory import resolve_territorial_context
 
 # Nodos geodésicos representativos de los principales corredores viales troncales pavimentados de Argentina
 NATIONAL_HIGHWAY_NODES: list[tuple[float, float, str]] = [
@@ -235,17 +237,178 @@ def estimate_distance_to_highway(lat: float, lon: float) -> tuple[float, str]:
     return dist_paved, closest_route
 
 
-def calculate_logistic_multiplier(lat: float, lon: float, allow_network: bool = True) -> LogisticDriver:
-    """Calcula el multiplicador logístico evaluando la distancia al asfalto actual vs futuro.
+def clean_str(s: str) -> str:
+    """Normaliza cadenas eliminando acentos y caracteres especiales."""
+    return unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("utf-8").strip()
 
-    Regla de negocio: Por cada 10 km que se reduzca la distancia al asfalto gracias a la nueva obra,
-    sumar un +3% al valor de la tierra (piso 1.0, tope máximo +15%).
-    Cálculo dinámico respecto a la red troncal nacional (cero hardcoding de distancia inicial).
+
+# Benchmarks zonales agronómicos de napa freática y aporte hídrico por capilaridad (INTA)
+DEPARTMENTAL_WATER_TABLE_BENCHMARKS: dict[tuple[str, str], dict[str, Any]] = {
+    ("Marcos Juarez", "Cordoba"): {
+        "depth_m": 1.8,
+        "classification": "Cota estival óptima (INTA Marcos Juárez)",
+        "capillary_buffer_mm": 210,
+        "impact_pct": 3.8,
+    },
+    ("Pergamino", "Buenos Aires"): {
+        "depth_m": 1.7,
+        "classification": "Cota freática óptima (INTA Pergamino)",
+        "capillary_buffer_mm": 195,
+        "impact_pct": 3.6,
+    },
+    ("General Lopez", "Santa Fe"): {
+        "depth_m": 2.0,
+        "classification": "Cota freática óptima (Cuenca Venado Tuerto)",
+        "capillary_buffer_mm": 180,
+        "impact_pct": 3.5,
+    },
+    ("Rio Segundo", "Cordoba"): {
+        "depth_m": 2.8,
+        "classification": "Cota moderada a profunda (EEA INTA Manfredi)",
+        "capillary_buffer_mm": 75,
+        "impact_pct": 1.8,
+    },
+    ("Manfredi", "Cordoba"): {
+        "depth_m": 2.8,
+        "classification": "Cota moderada a profunda (EEA INTA Manfredi)",
+        "capillary_buffer_mm": 75,
+        "impact_pct": 1.8,
+    },
+    ("Rio Cuarto", "Cordoba"): {
+        "depth_m": 4.5,
+        "classification": "Napa profunda / pedemonte sin aporte freático (FAV-UNRC)",
+        "capillary_buffer_mm": 0,
+        "impact_pct": 0.0,
+    },
+    ("Federacion", "Entre Rios"): {
+        "depth_m": 1.0,
+        "classification": "Vertisol con drenaje lento y riesgo de anegamiento estacional",
+        "capillary_buffer_mm": 30,
+        "impact_pct": -0.5,
+    },
+    ("Chacabuco", "Chaco"): {
+        "depth_m": 5.2,
+        "classification": "Napa salina profunda sin aporte a cultivos",
+        "capillary_buffer_mm": 0,
+        "impact_pct": 0.0,
+    },
+    ("Tres Arroyos", "Buenos Aires"): {
+        "depth_m": 4.0,
+        "classification": "Estrato con tosca somera sin conexión freática",
+        "capillary_buffer_mm": 0,
+        "impact_pct": 0.0,
+    },
+}
+
+
+def resolve_water_table_profile(lat: float, lon: float, allow_network: bool = True) -> dict[str, Any]:
+    """Determina la cota y resiliencia de la napa freática según serie INTA y perfil edafológico."""
+    territory = resolve_territorial_context(lat, lon, allow_network=allow_network)
+    dept_raw = territory.get("department", "")
+    prov_raw = territory.get("province", "")
+    soil = territory.get("soil_baseline", {})
+    order = str(soil.get("order", "")).lower()
+
+    dept_norm = clean_str(dept_raw).lower()
+    prov_norm = clean_str(prov_raw).lower()
+
+    if "espinillos" in dept_norm or "marcos juarez" in dept_norm:
+        canonical_dept = "Marcos Juarez"
+    elif "mandisovi" in dept_norm or "federacion" in dept_norm:
+        canonical_dept = "Federacion"
+    elif "pergamino" in dept_norm:
+        canonical_dept = "Pergamino"
+    elif "lopez" in dept_norm:
+        canonical_dept = "General Lopez"
+    elif "rio segundo" in dept_norm or "manfredi" in dept_norm:
+        canonical_dept = "Manfredi"
+    elif "rio cuarto" in dept_norm or "aguada" in dept_norm:
+        canonical_dept = "Rio Cuarto"
+    elif "chacabuco" in dept_norm or "charata" in dept_norm:
+        canonical_dept = "Chacabuco"
+    elif "tres arroyos" in dept_norm:
+        canonical_dept = "Tres Arroyos"
+    else:
+        canonical_dept = clean_str(dept_raw).title()
+
+    if "cordoba" in prov_norm:
+        canonical_prov = "Cordoba"
+    elif "entre rios" in prov_norm:
+        canonical_prov = "Entre Rios"
+    elif "buenos aires" in prov_norm:
+        canonical_prov = "Buenos Aires"
+    elif "santa fe" in prov_norm:
+        canonical_prov = "Santa Fe"
+    elif "chaco" in prov_norm:
+        canonical_prov = "Chaco"
+    else:
+        canonical_prov = clean_str(prov_raw).title()
+
+    key = (canonical_dept, canonical_prov)
+    if key in DEPARTMENTAL_WATER_TABLE_BENCHMARKS:
+        return DEPARTMENTAL_WATER_TABLE_BENCHMARKS[key]
+
+    # Modelo biofísico inferido por orden de suelo INTA
+    if "argiudol" in order:
+        return {
+            "depth_m": 1.9,
+            "classification": "Cota estival óptima pampeana (Argiudol)",
+            "capillary_buffer_mm": 190,
+            "impact_pct": 3.8,
+        }
+    elif "hapludol" in order:
+        return {
+            "depth_m": 2.2,
+            "classification": "Cota freática moderada-óptima (Hapludol)",
+            "capillary_buffer_mm": 150,
+            "impact_pct": 2.8,
+        }
+    elif "haplustol" in order:
+        return {
+            "depth_m": 2.8,
+            "classification": "Cota freática moderada (Haplustol semiárido)",
+            "capillary_buffer_mm": 80,
+            "impact_pct": 1.8,
+        }
+    elif "vertisol" in order:
+        return {
+            "depth_m": 1.2,
+            "classification": "Vertisol con napa fluctuante y drenaje restringido",
+            "capillary_buffer_mm": 40,
+            "impact_pct": -0.5,
+        }
+    else:
+        return {
+            "depth_m": 4.5,
+            "classification": "Secano profundo sin aporte freático significativo",
+            "capillary_buffer_mm": 0,
+            "impact_pct": 0.0,
+        }
+
+
+def calculate_logistic_multiplier(
+    lat: float,
+    lon: float,
+    allow_network: bool = True,
+    irrigation: bool = False,
+) -> LogisticDriver:
+    """Calcula el multiplicador de resiliencia hídrica y conectividad logística (Driver 1).
+
+    Regla de negocio:
+    1. Cota de napa freática (INTA): óptima (1.5m-2.5m) aporta 150-250 mm capilares estivales (+5% a +8%).
+       Napa profunda (>3.5m) o con tosca/roca aporta 0.0%. Napa anegable (<0.8m) penaliza (-2.5%).
+    2. Riego por pivote central: estabilidad productiva total (+8.0%).
+    3. Red vial troncal (OSM / IGN): ahorro de distancia a rutas pavimentadas suma hasta +3%.
+    Piso agronómico: -2.5% (anegamiento/aislamiento), techo máximo: +15.0%.
     """
-    # 1. Distancia actual estimada a la red vial pavimentada troncal más próxima
-    dist_current_paved, closest_route = estimate_distance_to_highway(lat, lon)
+    # 1. Perfil hídrico de napa freática y riego
+    water = resolve_water_table_profile(lat, lon, allow_network=allow_network)
+    hydric_pct = water["impact_pct"]
+    if irrigation:
+        hydric_pct += 8.0
 
-    # 2. Búsqueda de obras viales en construcción
+    # 2. Conectividad vial y cercanía al pavimento troncal
+    dist_current_paved, closest_route = estimate_distance_to_highway(lat, lon)
     overpass_works = fetch_overpass_road_works(lat, lon, radius_km=50.0) if allow_network else []
     closest_work = None
     min_dist = float("inf")
@@ -256,7 +419,6 @@ def calculate_logistic_multiplier(lat: float, lon: float, allow_network: bool = 
                 min_dist = w["distance_km"]
                 closest_work = w
     else:
-        # Fallback a catálogo geoespacial nacional de obras estratégicas
         for work in STRATEGIC_HIGHWAY_WORKS:
             d = haversine_km(lat, lon, work["coords"][1], work["coords"][0])
             if d <= 50.0 and d < min_dist:
@@ -273,26 +435,26 @@ def calculate_logistic_multiplier(lat: float, lon: float, allow_network: bool = 
     if closest_work and min_dist < dist_current_paved:
         future_dist = round(min_dist, 1)
         dist_saved = round(dist_current_paved - future_dist, 1)
-        # Regla: +3% cada 10 km de reducción (tope +15%)
-        impact_pct = min(15.0, max(0.0, round((dist_saved / 10.0) * 3.0, 1)))
-        multiplier = round(1.0 + (impact_pct / 100.0), 3)
-        detail = (
-            f"Obra vial '{closest_work['name']}' detectada a {future_dist:.1f} km del lote. "
-            f"Ahorro de flete y tiempo al asfalto de {dist_saved:.1f} km (+{impact_pct}%)."
-        )
+        road_pct = min(3.0, max(0.0, round((dist_saved / 10.0) * 1.5, 1)))
+        road_note = f"Obra vial '{closest_work['name']}' ahorra {dist_saved:.1f} km al asfalto (+{road_pct}%)."
     else:
-        # Sin obras que reduzcan la distancia al asfalto actual
         future_dist = dist_current_paved
         dist_saved = 0.0
-        impact_pct = 0.0
-        multiplier = 1.0
-        detail = (
-            f"Conexión a {closest_route} a {dist_current_paved:.1f} km. "
-            "Sin obras viales reductoras detectadas en radio de 50 km. Multiplicador logístico neutro (1.0)."
-        )
+        road_pct = 0.0
+        road_note = f"Conexión a {closest_route} a {dist_current_paved:.1f} km."
+
+    total_impact_pct = round(max(-2.5, min(15.0, hydric_pct + road_pct)), 1)
+    multiplier = round(1.0 + (total_impact_pct / 100.0), 4)
+
+    irrigation_tag = " [Riego Pivote Activo]" if irrigation else ""
+    detail = (
+        f"Resiliencia hídrica: Napa freática en {water['depth_m']:.1f}m ({water['classification']}; "
+        f"aporte capilar ~{water['capillary_buffer_mm']} mm en déficit estival, {hydric_pct:+.1f}%{irrigation_tag}). "
+        f"{road_note}"
+    )
 
     return LogisticDriver(
-        impact_percentage=impact_pct,
+        impact_percentage=total_impact_pct,
         multiplier=multiplier,
         distance_to_current_paved_km=dist_current_paved,
         distance_to_future_paved_km=future_dist,

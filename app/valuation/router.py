@@ -119,22 +119,22 @@ def get_valuation_drivers_guide() -> dict[str, Any]:
         "drivers": {
             "V0_base_value": {
                 "description": "Valor base actual del suelo rural en USD/ha al inicio de la valuación.",
-                "source": "IDECOR WFS (Córdoba) / CAIR e INTA Relevamiento de Mercado (Buenos Aires, Santa Fe, Entre Ríos).",
+                "source": "IDECOR WFS (Córdoba) / Modelo Dinámico Edafológico-Logístico (INTA / BCR).",
             },
             "M_log_logistic": {
-                "description": "Apreciación por nueva infraestructura vial en construcción o proyectada en un radio de 50 km.",
-                "rule": "+3% de valor por cada 10 km que se reduzca la distancia al asfalto más cercano (piso 1.0, tope máximo +15%).",
-                "source": "OpenStreetMap Overpass API (highway=construction o highway=proposed).",
+                "description": "Resiliencia hídrica por cota de napa freática (amortiguador estival), riego pivote y conectividad vial.",
+                "rule": "Napa freática óptima (1.5m-2.5m = aporte capilar 150-250 mm = +3.5% a +6.5%), riego (+8%), rutas pavimentadas.",
+                "source": "Red de Monitoreo Freático INTA / IGN / OSM Vialidad.",
             },
             "M_agro_agronomic": {
-                "description": "Apreciación por ganancia genética y tecnológica de rendimientos agrícolas a 15 años.",
-                "rule": "Tasa de Crecimiento Anual Compuesto (CAGR) trasladada al valor del suelo con factor 0.8.",
-                "source": "SAGyP - Estimaciones Agrícolas Oficiales Departamentales (Soja y Maíz).",
+                "description": "Salud de suelo, rotación balanceada y estabilidad de biomasa satelital Sentinel-2 (NDVI).",
+                "rule": "Serie histórica SAGyP 15a modulada por salud edafológica con elasticidad de renta agraria de Ricardo-Thünen (0.52).",
+                "source": "SAGyP Estimaciones Agrícolas / Copernicus Sentinel-2.",
             },
             "M_mkt_market": {
-                "description": "Apreciación macroeconómica del activo inmobiliario rural en dólares.",
-                "rule": "Tasa histórica de inflación y refugio de valor en USD (+2.0% anual compuesto).",
-                "source": "Informes históricos de mercado de tierras de la Bolsa de Comercio de Rosario (BCR).",
+                "description": "Ciclo de renta y capitalización rural en quintales de soja por hectárea.",
+                "rule": "Valor locativo de referencia en qq soja/ha capitalizado a tasa CAIR/BCR (2.85% anual) con tasa compuesta realista en USD.",
+                "source": "Cámara Argentina de Inmobiliarias Rurales (CAIR) / Bolsa de Comercio de Rosario (BCR) / BCCBA.",
             },
         },
     }

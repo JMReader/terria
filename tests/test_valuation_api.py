@@ -65,14 +65,15 @@ def test_field_coupled_valuation() -> None:
     # Valores unitarios
     assert v["base_value_usd_ha"] >= 7000.0  # Zona Núcleo Marcos Juárez
     assert v["projected_value_usd_ha"] > v["base_value_usd_ha"]
-    assert v["total_appreciation_percentage"] > 15.0  # Al menos ~20% acumulado
 
-    # Multiplicadores
+    # Multiplicadores realistas calibrados
     drivers = v["drivers_breakdown"]
-    assert drivers["logistic_improvement"]["multiplier"] >= 1.0
-    assert drivers["logistic_improvement"]["multiplier"] <= 1.15  # Tope +15%
-    assert drivers["agronomic_trend"]["multiplier"] > 1.0
-    assert drivers["market_appreciation"]["multiplier"] > 1.10  # ~10.4% en 5 años
+    assert 1.02 <= drivers["logistic_improvement"]["multiplier"] <= 1.15
+    assert 1.02 <= drivers["agronomic_trend"]["multiplier"] <= 1.10
+    assert 1.02 <= drivers["market_appreciation"]["multiplier"] <= 1.08
+
+    # Apreciación total realista sin piso forzado ni sesgo inflado (AC-04: entre +9.5% y +13.5%)
+    assert 9.5 <= v["total_appreciation_percentage"] <= 13.5
 
     # Totales del lote
     totals = v["financial_totals"]
@@ -143,7 +144,65 @@ def test_valuation_custom_horizon_10_years() -> None:
     assert v["current_year"] == 2026
     assert v["target_year"] == 2036
     assert v["projection_years"] == 10
-    assert v["total_appreciation_percentage"] > 25.0
+    assert v["total_appreciation_percentage"] >= 18.0
+
+
+def test_valuation_sensitivity_marcos_juarez_vs_pozo_del_carril() -> None:
+    """AC-04: Verifica la diferenciación edafológica e hídrica real entre Zona Núcleo y Pedemonte."""
+    from app.valuation.engine import run_land_valuation_projection
+
+    # 1. Marcos Juárez (Clase I + napa freática óptima 1.8m)
+    res_mj = run_land_valuation_projection(
+        geometry_data=[[-62.1013, -32.7057], [-62.0907, -32.7057], [-62.0907, -32.7193], [-62.1013, -32.7193], [-62.1013, -32.7057]],
+        lot_name="Marcos Juárez Test",
+        projection_years=5,
+        allow_network=False,
+    )
+    # 2. Pozo del Carril (Pedemonte Comechingones sin aporte freático)
+    res_pc = run_land_valuation_projection(
+        geometry_data=[[-64.6120, -32.9619], [-64.6014, -32.9619], [-64.6014, -32.9737], [-64.6120, -32.9737], [-64.6120, -32.9619]],
+        lot_name="Pozo del Carril Test",
+        projection_years=5,
+        allow_network=False,
+    )
+
+    apprec_mj = res_mj.valuation.total_appreciation_percentage
+    apprec_pc = res_pc.valuation.total_appreciation_percentage
+
+    # Brecha de valor agronómica: Marcos Juárez aprecia más del doble que Pozo del Carril
+    assert 9.5 <= apprec_mj <= 13.5
+    assert 3.0 <= apprec_pc <= 5.5
+    assert apprec_mj > apprec_pc
+
+
+def test_valuation_mathematical_consistency_and_hash() -> None:
+    """Verifica consistencia exacta de la ecuación maestra y determinismo del hash SHA-256."""
+    from app.valuation.engine import run_land_valuation_projection
+
+    res = run_land_valuation_projection(
+        geometry_data=[[-60.57, -33.89], [-60.55, -33.89], [-60.55, -33.87], [-60.57, -33.87], [-60.57, -33.89]],
+        lot_name="Pergamino Math Test",
+        projection_years=5,
+        allow_network=False,
+    )
+    v = res.valuation
+    d = v.drivers_breakdown
+
+    expected_proj = round(
+        v.base_value_usd_ha * d.logistic_improvement.multiplier * d.agronomic_trend.multiplier * d.market_appreciation.multiplier,
+        2,
+    )
+    assert v.projected_value_usd_ha == expected_proj
+    assert len(v.content_hash) == 64
+
+    # Re-ejecución determinista idéntica
+    res2 = run_land_valuation_projection(
+        geometry_data=[[-60.57, -33.89], [-60.55, -33.89], [-60.55, -33.87], [-60.57, -33.87], [-60.57, -33.89]],
+        lot_name="Pergamino Math Test",
+        projection_years=5,
+        allow_network=False,
+    )
+    assert res2.valuation.content_hash == v.content_hash
 
 
 def test_valuation_cli_preset(monkeypatch) -> None:
