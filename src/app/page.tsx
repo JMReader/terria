@@ -142,13 +142,9 @@ export default function Home() {
               return 0;
             });
 
-            // Combine backend real fields at top, preserving any additional catalog
-            const combinedFields = [
-              ...mapped,
-              ...FIELDS_DATA.filter((m) => !mapped.some((b) => b.name === m.name || b.id === m.id)),
-            ];
-            setBackendFields(combinedFields);
-            setSelectedField(combinedFields[0]);
+            // Strictly the fields that exist in the database — no mock catalog entries
+            setBackendFields(mapped);
+            setSelectedField(mapped[0]);
 
             // 3. Fetch timelapses for the first field
             const firstFieldId = mapped[0].id;

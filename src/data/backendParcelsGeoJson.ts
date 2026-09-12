@@ -436,7 +436,7 @@ export function generateParcelsGeoJson(
 
   // 5. Process Surrounding Neighbor Cadastral Parcels (Context)
   NEIGHBOR_CADASTRE_PARCELS.forEach((cad) => {
-    const field = fields.find((f) => f.id === cad.fieldId) || FIELDS_DATA.find((f) => f.id === cad.fieldId);
+    const field = fields.find((f) => f.id === cad.fieldId);
     if (!field) return;
 
     const ring = sanitizeRing(cad.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat]));
