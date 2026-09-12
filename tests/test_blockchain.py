@@ -121,6 +121,8 @@ def test_list_and_detail_certifications() -> None:
     detail = client.get(f"/v1/certifications/{created['id']}")
     assert detail.status_code == 200
     assert detail.json()["cert_uid"] == created["cert_uid"]
+    assert detail.json()["scope"] == "campaign"
+    assert detail.json()["month"] is None
 
 
 def test_public_certification_document() -> None:
@@ -368,6 +370,8 @@ def test_monthly_certifications_are_cumulative_and_chained(monkeypatch) -> None:
     assert issued[1].prev_content_hash == issued[0].content_hash
     assert issued[2].prev_content_hash == issued[1].content_hash
     assert len({certification.content_hash for certification in issued}) == 3
+    assert [certification.scope for certification in issued] == ["month", "month", "month"]
+    assert [certification.month for certification in issued] == ["2024-10", "2024-11", "2024-12"]
 
     snapshot = json.loads(get_certification_repository().get_payload(issued[2].id) or b"{}")
     assert snapshot["scope"] == "month"

@@ -44,6 +44,8 @@ class CertificationResponse(StrictModel):
     prev_content_hash: str | None
     issued_at: datetime | None
     created_at: datetime
+    scope: Literal["campaign", "month"] = "campaign"
+    month: str | None = None
     anchor: AnchorResponse | None = None
 
 

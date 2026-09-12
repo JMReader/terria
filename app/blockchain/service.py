@@ -60,8 +60,23 @@ def _anchor_response(anchor: AnchorRecord | None) -> AnchorResponse | None:
     )
 
 
+def _snapshot_scope(record: CertificationRecord) -> tuple[str, str | None]:
+    """`scope`/`month` viven dentro del snapshot; se leen del payload."""
+    payload = _repo().get_payload(record.id)
+    if payload is None:
+        return "campaign", None
+    try:
+        snapshot = json.loads(payload)
+    except (ValueError, TypeError):
+        return "campaign", None
+    if not isinstance(snapshot, dict):
+        return "campaign", None
+    return snapshot.get("scope") or "campaign", snapshot.get("month")
+
+
 def build_certification_response(record: CertificationRecord) -> CertificationResponse:
     anchor = _repo().get_anchor(record.id)
+    scope, month = _snapshot_scope(record)
     return CertificationResponse(
         id=record.id,
         field_id=record.field_id,
@@ -76,6 +91,8 @@ def build_certification_response(record: CertificationRecord) -> CertificationRe
         prev_content_hash=record.prev_content_hash,
         issued_at=record.issued_at,
         created_at=record.created_at,
+        scope=scope,  # type: ignore[arg-type]
+        month=month,
         anchor=_anchor_response(anchor),
     )
 
