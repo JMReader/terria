@@ -15,6 +15,13 @@ def test_openapi_has_the_field_crud_contract() -> None:
     assert "/v1/certifications/{certification_id}" in schema["paths"]
     assert "/v1/public/certifications/{cert_uid}/verify" in schema["paths"]
     assert "/debug/timelapse" in schema["paths"]
+    assert "/v1/fields/{field_id}/simulations/what-if" in schema["paths"]
+    assert "/v1/simulations/what-if" in schema["paths"]
+    assert "/v1/simulations/what-if/benchmarks" in schema["paths"]
+    assert "/v1/simulations/what-if/verify" in schema["paths"]
+    assert "/v1/fields/{field_id}/valuations/5yr" in schema["paths"]
+    assert "/v1/valuations/5yr" in schema["paths"]
+    assert "/v1/valuations/drivers" in schema["paths"]
 
 
 def test_field_can_be_created_published_and_read_publicly() -> None:

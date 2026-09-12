@@ -15,13 +15,17 @@ from app.schemas import (
     PublicFieldResponse,
     PublishResponse,
 )
-from app.store import FieldNotFound, SQLiteFieldStore
+from app.config import settings
+from app.db import db_ping
+from app.store import FieldNotFound, get_field_store
 from app.timelapse.router import router as timelapse_router
+from app.valuation.router import router as valuation_router
+from app.what_if.router import router as what_if_router
 
 app = FastAPI(
     title="TERRIA API",
     summary="Backend for the shareable history of a field.",
-    description="Initial CRUD API for fields, public field passports, and timelapse engine.",
+    description="Initial CRUD API for fields, public field passports, timelapse engine, What-If simulations, and 5-year land valuation projector.",
     version="0.1.0",
     openapi_version="3.1.0",
     openapi_tags=[
@@ -30,18 +34,32 @@ app = FastAPI(
         {"name": "Public fields", "description": "Shareable field passports."},
         {"name": "Timelapse", "description": "Field history and temporal observations."},
         {"name": "Certifications", "description": "Snapshot certifications anchored on Solana."},
+        {"name": "Simulations", "description": "What-If crop rotation and retrospective agronomic simulations."},
+        {"name": "Valuation", "description": "5-year land valuation projector (FinTech & Real Estate)."},
     ],
 )
+_cors_origins = [
+    o.strip() for o in settings.terria_cors_origins.split(",") if o.strip()
+] or ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=_cors_origins,
+    # En dev local el front puede servirse desde cualquier puerto/origen loopback
+    # (browser previews, túneles). Sin credenciales: seguro.
+    allow_origin_regex=(
+        r"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?"
+        if settings.terria_env == "development"
+        else None
+    ),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
-store = SQLiteFieldStore()
+store = get_field_store()
 app.include_router(timelapse_router)
 app.include_router(blockchain_router)
+app.include_router(what_if_router)
+app.include_router(valuation_router)
 
 DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
 
@@ -51,6 +69,8 @@ def debug_timelapse_page() -> str:
     if not DEBUG_TIMELAPSE_HTML_PATH.exists():
         raise HTTPException(status_code=404, detail="Debug timelapse UI not found")
     return DEBUG_TIMELAPSE_HTML_PATH.read_text(encoding="utf-8")
+
+
 
 
 def not_found(request: Request) -> HTTPException:
@@ -66,7 +86,12 @@ def not_found(request: Request) -> HTTPException:
 
 @app.get("/health", tags=["Health"])
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    backend = "supabase" if settings.use_supabase else "sqlite"
+    reachable = db_ping() if settings.use_supabase else True
+    return {
+        "status": "ok" if reachable else "degraded",
+        "database": backend if reachable else f"{backend}:unreachable",
+    }
 
 
 @app.post("/v1/fields", response_model=FieldResponse, status_code=status.HTTP_201_CREATED, tags=["Fields"])

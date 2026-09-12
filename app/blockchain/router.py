@@ -17,11 +17,11 @@ from app.blockchain.service import (
     issue_certification,
     verify_certification,
 )
-from app.store import FieldNotFound, SQLiteFieldStore
+from app.store import FieldNotFound, get_field_store
 from app.timelapse.repository import timelapse_repository
 
 router = APIRouter()
-field_store = SQLiteFieldStore()
+field_store = get_field_store()
 
 CERTIFICATION_HTML_PATH = (
     Path(__file__).resolve().parent.parent / "static" / "certification" / "index.html"

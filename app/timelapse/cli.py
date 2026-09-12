@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import argparse
 from datetime import date
-import json
 import logging
 import time
 from uuid import UUID
 
 from app.schemas import FieldCreate, PolygonGeometry
-from app.store import SQLiteFieldStore
+from app.store import get_field_store
 from app.timelapse.processing import process_timelapse_dataset
 from app.timelapse.repository import timelapse_repository
 
@@ -17,7 +16,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("timelapse.cli")
-store = SQLiteFieldStore()
+store = get_field_store()
 
 
 def run_worker(once: bool = False, poll_interval: float = 2.0) -> None:
@@ -37,11 +36,7 @@ def run_worker(once: bool = False, poll_interval: float = 2.0) -> None:
         try:
             # Load field
             field = store.get(job.field_id).value
-            with timelapse_repository._get_connection() as conn:
-                row = conn.execute(
-                    "SELECT parameters FROM timelapse_jobs WHERE id = ?", (str(job.id),)
-                ).fetchone()
-                params = json.loads(row["parameters"])
+            params = timelapse_repository.get_job_parameters(job.id) or {}
 
             start_date = date.fromisoformat(params["start_date"])
             end_date = date.fromisoformat(params["end_date"])

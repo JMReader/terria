@@ -29,6 +29,16 @@ class Settings(BaseSettings):
 
     # ── SQLite fallback (dev local sin Supabase) ──────────────────────────────
     terria_db_path: str = "data/terria.db"
+    terria_db_echo: bool = False
+
+    # Owner de las filas creadas por el backend mientras no haya Auth por request.
+    # Si falta y Supabase está activo, se provisiona `terria_system_email` vía Admin API.
+    terria_default_owner_id: str | None = None
+    terria_system_email: str = "terria-system@terria.local"
+
+    # Conexión para Alembic (default: DATABASE_DIRECT_URL; cae a DATABASE_URL si no resuelve).
+    migration_database_url: str | None = None
+
     timelapse_storage_dir: str = "data/storage"
     timelapse_processing_version: str = "0.2.0"
     timelapse_max_image_age_days: int = 10
