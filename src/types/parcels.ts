@@ -16,6 +16,8 @@ export interface ParcelProperties {
   currentTemp?: number;
   currentRain?: number;
   statusLabel?: string;
+  selectedDate?: string;
+  isFreshSatellite?: boolean;
 }
 
 export interface ParcelGeoJsonFeature {

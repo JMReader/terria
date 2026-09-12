@@ -14,6 +14,7 @@ import { Satellite } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { TimelapseManifest } from "@/types/terria";
+import { normalizeTimelapseManifest } from "@/lib/timelapseNormalizer";
 
 gsap.registerPlugin(useGSAP);
 
@@ -69,19 +70,47 @@ export default function Home() {
           const fieldsData = await fieldsRes.json();
           // Map backend fields to FieldItem shape (fill optional visual props from mock fallback)
           if (Array.isArray(fieldsData) && fieldsData.length > 0) {
-            const mapped: FieldItem[] = fieldsData.map((f: any, idx: number) => ({
-              id: f.id,
-              name: f.name,
-              lat: f.centroid_lat ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.lat ?? -33.12,
-              lng: f.centroid_lng ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.lng ?? -64.22,
-              hectares: f.area_hectares ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.hectares ?? 100,
-              crop: f.primary_crop ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.crop ?? "Maíz",
-              ndvi: FIELDS_DATA[idx % FIELDS_DATA.length]?.ndvi ?? 0.55,
-              aptitude: FIELDS_DATA[idx % FIELDS_DATA.length]?.aptitude ?? "Alta",
-              soilType: FIELDS_DATA[idx % FIELDS_DATA.length]?.soilType ?? "Franco arcilloso",
-              status: f.is_published ? "published" : "draft",
-              publicSlug: f.public_slug,
-            }));
+            const mapped: FieldItem[] = fieldsData.map((f: any, idx: number) => {
+              let lat = f.centroid_lat;
+              let lng = f.centroid_lng;
+              if (lat == null || lng == null) {
+                if (f.boundary?.coordinates?.[0]?.length > 0) {
+                  const coords = f.boundary.coordinates[0];
+                  const sumLng = coords.reduce((acc: number, c: number[]) => acc + c[0], 0);
+                  const sumLat = coords.reduce((acc: number, c: number[]) => acc + c[1], 0);
+                  lng = Number((sumLng / coords.length).toFixed(6));
+                  lat = Number((sumLat / coords.length).toFixed(6));
+                } else {
+                  lat = FIELDS_DATA[idx % FIELDS_DATA.length]?.lat ?? -33.89;
+                  lng = FIELDS_DATA[idx % FIELDS_DATA.length]?.lng ?? -60.61;
+                }
+              }
+
+              return {
+                id: f.id,
+                name: f.name,
+                code: `CAMPO ${String(idx + 1).padStart(2, "0")}`,
+                locality: f.locality || "Pergamino",
+                province: f.province || "Buenos Aires",
+                coordinates: `${Math.abs(lat).toFixed(2)}°S ${Math.abs(lng).toFixed(2)}°W`,
+                lat,
+                lng,
+                hectares: f.area_hectares ?? 100,
+                crop: f.primary_crop ?? "Maíz Tardío",
+                primaryCrop: f.primary_crop ?? "Maíz Tardío",
+                ndvi: 0.79,
+                aptitude: "Alta",
+                suitabilityScore: 94,
+                soilSeries: "Argiudol Típico Serie Pergamino",
+                soilType: "Argiudol Típico Serie Pergamino",
+                rentUsdHa: 220,
+                rentQqSoja: 14.5,
+                waterTable: "Óptima a 2.1m",
+                status: f.is_published ? "published" : "destacado",
+                tags: ["Zona Núcleo", "Suelo Clase I-II", "Monitoreo Satelital"],
+                publicSlug: f.public_slug,
+              };
+            });
             setBackendFields(mapped);
             setSelectedField(mapped[0]);
 
@@ -99,8 +128,9 @@ export default function Home() {
                   `${API_URL}/v1/fields/${firstFieldId}/timelapses/${readyDataset.id}`
                 );
                 if (manifestRes.ok) {
-                  const manifest = await manifestRes.json();
-                  setTimelapseManifest(manifest);
+                  const raw = await manifestRes.json();
+                  const normalized = normalizeTimelapseManifest(raw);
+                  setTimelapseManifest(normalized);
                 }
               }
             }
@@ -145,7 +175,7 @@ export default function Home() {
     { scope: pageContainerRef }
   );
 
-  const handleSelectField = (field: FieldItem) => {
+  const handleSelectField = async (field: FieldItem) => {
     setSelectedField(field);
     setIsFieldExpanded(true); // Smoothly expands into the second view (detailed passport)
 
@@ -155,6 +185,28 @@ export default function Home() {
         { scale: 0.988 },
         { scale: 1, duration: 0.4, ease: "power2.out" }
       );
+    }
+
+    // Attempt to load field's specific timelapse dataset from backend
+    try {
+      const tlRes = await fetch(`${API_URL}/v1/fields/${field.id}/timelapses`);
+      if (tlRes.ok) {
+        const datasets = await tlRes.json();
+        const readyDataset = datasets.find(
+          (d: any) => d.status === "ready" || d.status === "partial"
+        );
+        if (readyDataset) {
+          const manifestRes = await fetch(
+            `${API_URL}/v1/fields/${field.id}/timelapses/${readyDataset.id}`
+          );
+          if (manifestRes.ok) {
+            const raw = await manifestRes.json();
+            setTimelapseManifest(normalizeTimelapseManifest(raw));
+          }
+        }
+      }
+    } catch {
+      // Backend not responding for this field — keep active manifest
     }
   };
 
@@ -205,6 +257,7 @@ export default function Home() {
               <Planet3D
                 embedded={true}
                 selectedField={selectedField}
+                fields={backendFields}
                 isExpanded={isFieldExpanded}
                 onSelectField={handleSelectField}
                 onIsolateField={() => setIsFieldIsolated3D(true)}

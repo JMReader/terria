@@ -29,6 +29,7 @@ export interface Planet3DProps {
   onSelectField?: (field: FieldItem) => void;
   onIsolateField?: (field: FieldItem) => void;
   timelapse?: ReturnType<typeof useFieldTimelapse>;
+  fields?: FieldItem[];
 }
 
 // 100% Free & Open Basemap Styles without Watermarks or API Key Requirements
@@ -210,6 +211,7 @@ export default function Planet3D({
   onSelectField,
   onIsolateField,
   timelapse,
+  fields,
 }: Planet3DProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -220,12 +222,21 @@ export default function Planet3D({
   const [currentZoom, setCurrentZoom] = useState<number>(2.0);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
 
+  const fieldsList = fields && fields.length > 0 ? fields : FIELDS_DATA;
+
   // Construct GeoJSON FeatureCollection for field cadastral parcels & crop sectors
   const buildParcelsGeoJson = useCallback(() => {
-    const selectedDate = timelapse?.timelineState?.selectedDate || "2025-01-01";
+    const selectedDate = timelapse?.timelineState?.selectedDate || "2024-01-01";
     const activeLayer = (timelapse?.activeLayer as "rgb" | "ndvi" | "weather") || "ndvi";
-    return generateParcelsGeoJson(selectedDate, activeLayer, selectedField?.id);
-  }, [timelapse?.timelineState?.selectedDate, timelapse?.activeLayer, selectedField?.id]);
+    return generateParcelsGeoJson(
+      selectedDate,
+      activeLayer,
+      selectedField?.id,
+      fieldsList,
+      timelapse?.timelineState,
+      timelapse?.manifest
+    );
+  }, [timelapse?.timelineState, timelapse?.activeLayer, timelapse?.manifest, selectedField?.id, fieldsList]);
 
   // Synchronize GeoJSON source whenever timelapse date or layer changes
   useEffect(() => {
@@ -451,7 +462,7 @@ export default function Planet3D({
           const isPortfolio = features[0].properties?.isPortfolio;
           if (isPortfolio) {
             const fieldId = features[0].properties?.fieldId;
-            const match = FIELDS_DATA.find((f) => f.id === fieldId);
+            const match = fieldsList.find((f) => f.id === fieldId) || FIELDS_DATA.find((f) => f.id === fieldId);
             if (match && onSelectField) {
               onSelectField(match);
             }
@@ -485,20 +496,23 @@ export default function Planet3D({
 
         const html = isPortfolio
           ? `
-            <div style="padding: 7px 11px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.35; max-width: 215px;">
+            <div style="padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.4; max-width: 230px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
                   <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #10b981;"></span>
-                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.05em;">Lote en Cartera</span>
+                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.05em;">Lote Delimitado</span>
                 </div>
-                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 1px 5px; border-radius: 4px;">NDVI ${props.currentNdvi}</span>` : ''}
+                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 800; color: #ffffff; background: ${props.color || '#15803d'}; padding: 1px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">NDVI ${props.currentNdvi}</span>` : ''}
               </div>
-              <div style="font-weight: 700; color: #0f172a; font-size: 12px;">${props.name || props.fieldName || "Lote Productivo"}</div>
+              <div style="font-weight: 800; color: #0f172a; font-size: 12px;">${props.name || props.fieldName || "Lote Productivo"}</div>
               <div style="color: #475569; font-size: 11px; margin-top: 2px;">${props.crop} • <b>${props.hectares || 0} ha</b></div>
               <div style="font-size: 10px; color: #047857; margin-top: 4px; background: #f0fdf4; padding: 3px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">
                 🌱 ${props.statusLabel || "Desarrollo vegetal activo"}
               </div>
-              ${props.currentTemp ? `<div style="font-size: 10px; color: #64748b; margin-top: 3px;">ERA5 Clima: ${props.currentTemp}°C • Lluvia: ${props.currentRain || 0} mm</div>` : ''}
+              <div style="display: flex; justify-content: space-between; font-size: 9px; color: #64748b; margin-top: 4px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
+                <span>📅 ${props.selectedDate || "Fecha activa"}</span>
+                ${props.currentTemp ? `<span>Clima: ${props.currentTemp}°C</span>` : ''}
+              </div>
               <div style="color: #2563eb; font-weight: 600; font-size: 10px; margin-top: 5px;">Clic para abrir pasaporte ➔</div>
             </div>
           `
@@ -551,50 +565,60 @@ export default function Planet3D({
     }
   });
 
-  // Add interactive field markers
-  markersRef.current.forEach((m) => m.remove());
-  markersRef.current = [];
+    return () => {
+      clearTimeout(resizeTimeout);
+      ro.disconnect();
+      markersRef.current.forEach((m) => m.remove());
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
 
-  FIELDS_DATA.forEach((field) => {
-    const el = document.createElement("div");
-    el.className =
-      "group cursor-pointer flex items-center gap-1.5 rounded-full bg-white/95 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-blue-500 hover:shadow-lg active:scale-95";
+  // Synchronize interactive field markers with dynamic fieldsList
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
 
-    el.innerHTML = `
-      <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-      <span class="truncate max-w-[120px] font-bold text-gray-900">${field.name}</span>
-      <span class="rounded-full bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 text-[10px]">
-        ${field.hectares} ha
-      </span>
-    `;
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
 
-    el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (onSelectField) onSelectField(field);
-      map.flyTo({
-        center: [field.lng, field.lat],
-        zoom: 14.8,
-        pitch: 45,
-        bearing: -15,
-        duration: 2200,
+    fieldsList.forEach((field) => {
+      const el = document.createElement("div");
+      el.className =
+        "group cursor-pointer flex items-center gap-1.5 rounded-full bg-white/95 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-blue-500 hover:shadow-lg active:scale-95";
+
+      el.innerHTML = `
+        <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="truncate max-w-[120px] font-bold text-gray-900">${field.name}</span>
+        <span class="rounded-full bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 text-[10px]">
+          ${field.hectares} ha
+        </span>
+      `;
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (onSelectField) onSelectField(field);
+        map.flyTo({
+          center: [field.lng, field.lat],
+          zoom: 14.8,
+          pitch: 45,
+          bearing: -15,
+          duration: 2200,
+        });
       });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat([field.lng, field.lat])
+        .addTo(map);
+
+      markersRef.current.push(marker);
     });
 
-    const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
-      .setLngLat([field.lng, field.lat])
-      .addTo(map);
-
-    markersRef.current.push(marker);
-  });
-
-  return () => {
-    clearTimeout(resizeTimeout);
-    ro.disconnect();
-    markersRef.current.forEach((m) => m.remove());
-    map.remove();
-    mapRef.current = null;
-  };
-}, []);
+    return () => {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+    };
+  }, [fieldsList, onSelectField]);
 
 // React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
 useEffect(() => {
