@@ -115,15 +115,9 @@ export default function Hero() {
         <div className="hero-ctas flex flex-wrap items-center gap-3 pt-2">
           <a
             href="#explorador"
-            className="rounded-full bg-nube px-6 py-3 text-xs font-mono font-bold uppercase tracking-[0.15em] text-bosque transition-all hover:bg-tierra hover:text-bosque-deep"
+            className="rounded-full bg-nube px-6 py-3 text-xs font-mono font-bold uppercase tracking-[0.15em] text-bosque transition-all hover:bg-tierra hover:text-bosque-deep shadow-md"
           >
             Explorar parcelas
-          </a>
-          <a
-            href="#certificado"
-            className="rounded-full border border-nube/40 px-6 py-3 text-xs font-mono font-bold uppercase tracking-[0.15em] text-nube/90 transition-all hover:border-tierra hover:text-tierra"
-          >
-            Ver certificado
           </a>
         </div>
       </div>

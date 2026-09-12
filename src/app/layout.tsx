@@ -18,9 +18,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "TERRIA — Certificación de parcelas",
+  title: "TERRIA — Explorador territorial de parcelas",
   description:
-    "Blockchain + IA para la historia del campo. Cada parcela tiene una historia; ahora puede demostrarla. La tierra tiene memoria.",
+    "Plataforma territorial de precisión agronómica, gemelo digital 3D y monitoreo satelital de campos.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

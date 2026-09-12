@@ -28,9 +28,6 @@ export default function SiteFooter() {
               <a href="#explorador" className="text-nube/70 transition-colors hover:text-nube">
                 Explorador
               </a>
-              <a href="#certificado" className="text-nube/70 transition-colors hover:text-nube">
-                Certificado
-              </a>
             </div>
             <div className="flex flex-col gap-2.5">
               <span className="text-tierra">Datos</span>

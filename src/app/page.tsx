@@ -9,7 +9,6 @@ import FieldDetailView from "@/components/FieldDetailView";
 import WebGpuCosmicGrid from "@/components/WebGpuCosmicGrid";
 import TimelapseController from "@/components/timelapse/TimelapseController";
 import Hero from "@/components/landing/Hero";
-import CertificateSection from "@/components/landing/CertificateSection";
 import SiteFooter from "@/components/landing/SiteFooter";
 import { useFieldTimelapse } from "@/hooks/useFieldTimelapse";
 import { DEMO_TIMELAPSE_MANIFEST } from "@/data/timelapseMockData";
@@ -376,9 +375,6 @@ export default function Home() {
         </div>
         </main>
       </section>
-
-      {/* ── CERTIFICADO + SISTEMA DE VERSIONES ─────────────────── */}
-      <CertificateSection field={selectedField} />
 
       <SiteFooter />
     </div>
