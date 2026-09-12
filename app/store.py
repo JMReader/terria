@@ -81,8 +81,14 @@ class SQLiteFieldStore:
                 published_at TEXT
             );
             """)
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(fields)").fetchall()
+            }
+            if "owner_id" not in columns:
+                conn.execute("ALTER TABLE fields ADD COLUMN owner_id TEXT")
 
-    def create(self, payload: FieldCreate) -> FieldResponse:
+    def create(self, payload: FieldCreate, owner_id: UUID | None = None) -> FieldResponse:
         now = utcnow()
         field_id = uuid4()
         area_ha = polygon_area_hectares(payload.boundary)
@@ -98,6 +104,7 @@ class SQLiteFieldStore:
             locality=payload.locality,
             visibility="private",
             public_slug=None,
+            owner_id=owner_id,
             created_at=now,
             updated_at=now,
         )
@@ -107,8 +114,8 @@ class SQLiteFieldStore:
                 """
                 INSERT INTO fields (
                     id, name, description, boundary, area_hectares, country, province,
-                    locality, visibility, public_slug, created_at, updated_at, published_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    locality, visibility, public_slug, owner_id, created_at, updated_at, published_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(field.id),
@@ -121,6 +128,7 @@ class SQLiteFieldStore:
                     field.locality,
                     field.visibility,
                     field.public_slug,
+                    str(field.owner_id) if field.owner_id else None,
                     field.created_at.isoformat(),
                     field.updated_at.isoformat(),
                     None,
@@ -139,6 +147,14 @@ class SQLiteFieldStore:
     def list(self) -> list[FieldResponse]:
         with self._connection() as conn:
             rows = conn.execute("SELECT * FROM fields ORDER BY created_at DESC").fetchall()
+            return [self._row_to_field(row) for row in rows]
+
+    def list_by_owner(self, owner_id: UUID) -> list[FieldResponse]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM fields WHERE owner_id = ? ORDER BY created_at DESC",
+                (str(owner_id),),
+            ).fetchall()
             return [self._row_to_field(row) for row in rows]
 
     def get(self, field_id: UUID) -> StoredField:
@@ -263,6 +279,7 @@ class SQLiteFieldStore:
             locality=row["locality"],
             visibility=row["visibility"],
             public_slug=row["public_slug"],
+            owner_id=UUID(row["owner_id"]) if row["owner_id"] else None,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -301,6 +318,7 @@ class PostgresFieldStore:
         fields_table.c.locality,
         fields_table.c.visibility,
         fields_table.c.public_slug,
+        fields_table.c.owner_id,
         fields_table.c.published_at,
         fields_table.c.created_at,
         fields_table.c.updated_at,
@@ -344,18 +362,19 @@ class PostgresFieldStore:
             locality=row["locality"],
             visibility=row["visibility"],
             public_slug=row["public_slug"],
+            owner_id=row["owner_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
 
     # ── API pública (mismo contrato que SQLiteFieldStore) ───────────────────
 
-    def create(self, payload: FieldCreate) -> FieldResponse:
+    def create(self, payload: FieldCreate, owner_id: UUID | None = None) -> FieldResponse:
         geom = multipolygon_geography(payload.boundary.model_dump_json())
         stmt = (
             fields_table.insert()
             .values(
-                owner_id=resolve_owner_id(),
+                owner_id=owner_id or resolve_owner_id(),
                 name=payload.name,
                 description=payload.description,
                 boundary=geom,
@@ -387,6 +406,15 @@ class PostgresFieldStore:
         with get_engine().connect() as conn:
             rows = conn.execute(
                 self._select().order_by(fields_table.c.created_at.desc())
+            ).mappings().all()
+            return [self._row_to_field(row) for row in rows]
+
+    def list_by_owner(self, owner_id: UUID) -> list[FieldResponse]:
+        with get_engine().connect() as conn:
+            rows = conn.execute(
+                self._select()
+                .where(fields_table.c.owner_id == owner_id)
+                .order_by(fields_table.c.created_at.desc())
             ).mappings().all()
             return [self._row_to_field(row) for row in rows]
 

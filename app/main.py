@@ -3,11 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from app.auth import (
+    AuthResponse,
+    EmailTaken,
+    InvalidCredentials,
+    LoginRequest,
+    OwnerResponse,
+    RegisterRequest,
+    auth_store,
+    bearer_token,
+    get_current_owner,
+    get_optional_owner,
+    unauthorized,
+)
 from app.blockchain.router import router as blockchain_router
+from app.certificate import build_certificate_pdf
 from app.schemas import (
     FieldCreate,
     FieldResponse,
@@ -36,6 +50,7 @@ app = FastAPI(
         {"name": "Certifications", "description": "Snapshot certifications anchored on Solana."},
         {"name": "Simulations", "description": "What-If crop rotation and retrospective agronomic simulations."},
         {"name": "Valuation", "description": "5-year land valuation projector (FinTech & Real Estate)."},
+        {"name": "Auth", "description": "Owner accounts and sessions."},
     ],
 )
 _cors_origins = [
@@ -84,6 +99,29 @@ def not_found(request: Request) -> HTTPException:
     )
 
 
+def forbidden(request: Request) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "FORBIDDEN",
+            "message": "This field belongs to a different owner",
+            "request_id": request.headers.get("X-Request-ID", "local"),
+        },
+    )
+
+
+def check_field_ownership(field_id: UUID, owner: OwnerResponse | None, request: Request) -> None:
+    """Owned fields can only be mutated by their owner. Unowned fields stay open (demo)."""
+    stored = store.get(field_id)
+    field = stored.value
+    if field.owner_id is None:
+        return
+    if owner is None:
+        raise unauthorized(request) from None
+    if field.owner_id != owner.id:
+        raise forbidden(request) from None
+
+
 @app.get("/health", tags=["Health"])
 def health() -> dict[str, str]:
     backend = "supabase" if settings.use_supabase else "sqlite"
@@ -94,14 +132,69 @@ def health() -> dict[str, str]:
     }
 
 
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+
+@app.post("/v1/auth/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED, tags=["Auth"])
+def register_owner(payload: RegisterRequest, request: Request) -> AuthResponse:
+    try:
+        return auth_store.register(payload)
+    except EmailTaken:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "EMAIL_TAKEN",
+                "message": "An owner with this email already exists",
+                "request_id": request.headers.get("X-Request-ID", "local"),
+            },
+        ) from None
+
+
+@app.post("/v1/auth/login", response_model=AuthResponse, tags=["Auth"])
+def login_owner(payload: LoginRequest, request: Request) -> AuthResponse:
+    try:
+        return auth_store.login(payload)
+    except InvalidCredentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "INVALID_CREDENTIALS",
+                "message": "Invalid email or password",
+                "request_id": request.headers.get("X-Request-ID", "local"),
+            },
+        ) from None
+
+
+@app.post("/v1/auth/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["Auth"])
+def logout_owner(request: Request) -> Response:
+    token = bearer_token(request)
+    if token:
+        auth_store.logout(token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/v1/auth/me", response_model=OwnerResponse, tags=["Auth"])
+def get_me(owner: OwnerResponse = Depends(get_current_owner)) -> OwnerResponse:
+    return owner
+
+
+# ── Fields ────────────────────────────────────────────────────────────────────
+
+
 @app.post("/v1/fields", response_model=FieldResponse, status_code=status.HTTP_201_CREATED, tags=["Fields"])
-def create_field(payload: FieldCreate) -> FieldResponse:
-    return store.create(payload)
+def create_field(payload: FieldCreate, request: Request) -> FieldResponse:
+    owner = get_optional_owner(request)
+    return store.create(payload, owner_id=owner.id if owner else None)
 
 
 @app.get("/v1/fields", response_model=list[FieldResponse], tags=["Fields"])
 def list_fields() -> list[FieldResponse]:
     return store.list()
+
+
+@app.get("/v1/me/fields", response_model=list[FieldResponse], tags=["Fields"])
+def list_my_fields(owner: OwnerResponse = Depends(get_current_owner)) -> list[FieldResponse]:
+    return store.list_by_owner(owner.id)
 
 
 @app.get("/v1/fields/{field_id}", response_model=FieldResponse, tags=["Fields"])
@@ -113,16 +206,27 @@ def get_field(field_id: UUID, request: Request) -> FieldResponse:
 
 
 @app.patch("/v1/fields/{field_id}", response_model=FieldResponse, tags=["Fields"])
-def update_field(field_id: UUID, payload: FieldUpdate, request: Request) -> FieldResponse:
+def update_field(
+    field_id: UUID,
+    payload: FieldUpdate,
+    request: Request,
+    owner: OwnerResponse | None = Depends(get_optional_owner),
+) -> FieldResponse:
     try:
+        check_field_ownership(field_id, owner, request)
         return store.update(field_id, payload)
     except FieldNotFound:
         raise not_found(request) from None
 
 
 @app.post("/v1/fields/{field_id}/publish", response_model=PublishResponse, tags=["Fields"])
-def publish_field(field_id: UUID, request: Request) -> PublishResponse:
+def publish_field(
+    field_id: UUID,
+    request: Request,
+    owner: OwnerResponse | None = Depends(get_optional_owner),
+) -> PublishResponse:
     try:
+        check_field_ownership(field_id, owner, request)
         field = store.publish(field_id)
     except FieldNotFound:
         raise not_found(request) from None
@@ -130,20 +234,51 @@ def publish_field(field_id: UUID, request: Request) -> PublishResponse:
 
 
 @app.post("/v1/fields/{field_id}/unpublish", response_model=FieldResponse, tags=["Fields"])
-def unpublish_field(field_id: UUID, request: Request) -> FieldResponse:
+def unpublish_field(
+    field_id: UUID,
+    request: Request,
+    owner: OwnerResponse | None = Depends(get_optional_owner),
+) -> FieldResponse:
     try:
+        check_field_ownership(field_id, owner, request)
         return store.unpublish(field_id)
     except FieldNotFound:
         raise not_found(request) from None
 
 
 @app.delete("/v1/fields/{field_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Fields"])
-def archive_field(field_id: UUID, request: Request) -> Response:
+def archive_field(
+    field_id: UUID,
+    request: Request,
+    owner: OwnerResponse | None = Depends(get_optional_owner),
+) -> Response:
     try:
+        check_field_ownership(field_id, owner, request)
         store.archive(field_id)
     except FieldNotFound:
         raise not_found(request) from None
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/v1/fields/{field_id}/certificate.pdf", tags=["Fields"])
+def field_certificate_pdf(field_id: UUID, request: Request) -> Response:
+    try:
+        field = store.get(field_id).value
+    except FieldNotFound:
+        raise not_found(request) from None
+    passport_url = (
+        f"{settings.terria_public_web_base}/p/{field.public_slug}"
+        if field.visibility == "public" and field.public_slug
+        else None
+    )
+    pdf = build_certificate_pdf(field, passport_url)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="terria-certificado-{field_id}.pdf"'
+        },
+    )
 
 
 @app.get("/v1/public/fields/{public_slug}", response_model=PublicFieldResponse, tags=["Public fields"])
@@ -154,6 +289,7 @@ def get_public_field(public_slug: str, request: Request) -> PublicFieldResponse:
         raise not_found(request) from None
     field = stored.value
     return PublicFieldResponse(
+        id=field.id,
         name=field.name,
         description=field.description,
         boundary=field.boundary,
@@ -161,5 +297,6 @@ def get_public_field(public_slug: str, request: Request) -> PublicFieldResponse:
         country=field.country,
         province=field.province,
         locality=field.locality,
+        public_slug=field.public_slug,
         published_at=stored.published_at or field.updated_at,
     )

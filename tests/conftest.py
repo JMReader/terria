@@ -16,6 +16,11 @@ os.environ["DATABASE_URL"] = ""
 os.environ["DATABASE_DIRECT_URL"] = ""
 os.environ["MIGRATION_DATABASE_URL"] = ""
 
+# Auth en modo local (PBKDF2 + SQLite): los tests nunca pegan a GoTrue.
+os.environ["SUPABASE_URL"] = ""
+os.environ["SUPABASE_ANON_KEY"] = ""
+os.environ["SUPABASE_SERVICE_ROLE_KEY"] = ""
+
 # Los tests nunca tocan la red: anclaje en el validador local en memoria.
 os.environ["SOLANA_ANCHOR_PROVIDER"] = "local"
 os.environ["SOLANA_ISSUER_SECRET_KEY"] = ""

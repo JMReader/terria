@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     terria_env: str = "development"
     terria_cors_origins: str = "http://localhost:3000"
+    # Base pública del frontend — se imprime en el PDF del certificado
+    terria_public_web_base: str = "http://localhost:3000"
 
     # ── Supabase ──────────────────────────────────────────────────────────────
     # Pooler transaccional (:6543) — API y worker serverless

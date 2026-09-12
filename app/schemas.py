@@ -61,11 +61,13 @@ class FieldResponse(StrictModel):
     locality: str | None
     visibility: Literal["private", "public"]
     public_slug: str | None
+    owner_id: UUID | None
     created_at: datetime
     updated_at: datetime
 
 
 class PublicFieldResponse(StrictModel):
+    id: UUID
     name: str
     description: str | None
     boundary: PolygonGeometry
@@ -73,6 +75,7 @@ class PublicFieldResponse(StrictModel):
     country: str | None
     province: str | None
     locality: str | None
+    public_slug: str | None
     published_at: datetime
 
 
