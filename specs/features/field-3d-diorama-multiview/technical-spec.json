@@ -1,0 +1,152 @@
+{
+  "$schema": "technical-spec/v1",
+  "feature_id": "field-3d-diorama-multiview",
+  "title": "Technical Spec: Extrusión Geométrica Fiel por Campo, Vistas Analíticas Coordinadas y Telemetría Aérea vgpu (WebGPU)",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval (Gate 2)",
+  "based_on": "functional-spec v1.0.0",
+
+  "architecture_decisions": {
+    "geometry_engine": {
+      "strategy": "Extrusión procedural basada en el polígono perimetral real de cada campo (boundary catastral)",
+      "coordinate_normalization": "Función geodésica que proyecta coordenadas lat/lng del GeoJSON a metros euclidianos centrados en (0,0) y los escala a dimensiones óptimas de escena [-5.5, 5.5] preservando el aspect ratio geográfico real.",
+      "stratigraphy_conformance": "Las capas geológicas inferiores (Horizonte A, B, C y Napa) ya no son prismas rectangulares genéricos; se generan extruyendo hacia abajo el MISMO polígono perimetral que la superficie, creando el efecto de corte 'Land Section' arquitectónico (referencia Pinterest https://pin.it/5A3nGT4Q3).",
+      "dimensional_cotas": "Cálculo geodésico Haversine de cada arista del polígono exterior. Para cada tramo (P_i -> P_{i+1}) se genera una cota dimensional tipográfica 3D (orientada a lo largo del rumbo con su distancia en metros, e.g. '840 m', '1.120 m') y marcadores de vértices 'V1', 'V2', etc."
+    },
+    "multi_view_state_machine": {
+      "analytical_modes": [
+        {
+          "id": "ndvi",
+          "name": "NDVI & Biomasa",
+          "colormap": "Escala agronómica Sentinel-2 (7 bandas de ocre a bosque profundo)",
+          "kpis": ["NDVI medio", "Variación intra-lote", "Vigor fotosintético"]
+        },
+        {
+          "id": "thermal",
+          "name": "Micro-Clima ERA5",
+          "colormap": "Rampa de temperatura térmica (#7ba7d9 fresco -> #4a6b46 óptimo -> #c9b28a cálido -> #8f7550 estrés)",
+          "kpis": ["Temp Máx / Mín", "Gradiente térmico", "Riesgo de helada"]
+        },
+        {
+          "id": "moisture",
+          "name": "Hidrología & Napa",
+          "colormap": "Gradiente de saturación hídrica + iluminación translúcida de napa subterránea",
+          "kpis": ["Humedad perfil radicular %", "Lluvia absorbida", "Profundidad napa"]
+        },
+        {
+          "id": "topography",
+          "name": "Topografía & Drenaje",
+          "colormap": "Hipsometría de curvas de nivel y líneas de escorrentía sobre el relieve",
+          "kpis": ["Cota mínima / máxima", "Pendiente media", "Dirección drenaje"]
+        }
+      ],
+      "coordination_strategy": "Cambiar de modo analítico tweenea los materiales y shaders de las mallas mediante GSAP (duration: 0.4s) SIN destruir la escena, manteniendo intacta la cámara orbital y los controles."
+    },
+    "atmospheric_telemetry_hud": {
+      "placement": "Espacio aéreo volumétrico suspendido inmediatamente sobre la maqueta (y = 4.8 en coordenadas 3D)",
+      "synchronization": "Enlazado directamente con 'timelapse.timelineState' y 'timelapse.dateIndex': muestra T_max, T_min, lluvia diaria (mm), acumulado 7d (mm) y radiación/nubes.",
+      "reactive_fluctuation": "Al correr el timelapse o cambiar de fecha, los datos del espacio aéreo cambian de valor numérico y el relieve 3D actualiza sus colores y texturas de inmediato."
+    },
+    "vgpu_webgpu_integration": {
+      "package": "vgpu v0.4.1 (existente en package.json)",
+      "wgsl_shaders": [
+        "Shader de partículas ambientales atmosféricas en suspensión (precipitación / shimmer térmico diurno)",
+        "Shader de micro-relieve y ondas de canopia vegetal dependiente del tiempo"
+      ],
+      "fallback_policy": "Si navigator.gpu no está disponible, se desactiva el pase de partículas WebGPU y Three.js WebGL asume el 100% de la escena sin degradación de la experiencia."
+    }
+  },
+
+  "module_specifications": {
+    "src_components_3d_LandSectionPerimeter_ts": {
+      "purpose": "Motor geométrico para modelar la silueta irregular del campo, estratos de suelo y cotas dimensionales.",
+      "exports": [
+        "createFieldPerimeterShape(field: FieldItem): { shape: THREE.Shape, vertices: THREE.Vector3[], segments: PerimeterSegment[] }",
+        "createStratigraphicSlices(shape: THREE.Shape): THREE.Group",
+        "calculatePerimeterMeasurements(field: FieldItem): PerimeterSegment[]",
+        "createDimensionLabels(segments: PerimeterSegment[]): THREE.Group"
+      ]
+    },
+    "src_components_3d_AtmosphericTelemetryOverlay_tsx": {
+      "purpose": "HUD dimensional flotante en el espacio aéreo del campo con indicadores meteorológicos del timelapse.",
+      "props": {
+        "timelineState": "TimelineState | null",
+        "dateIndex": "number",
+        "dates": "string[]",
+        "activeView": "AnalyticalViewMode",
+        "screenCoords": "{ x: number, y: number, visible: boolean }"
+      }
+    },
+    "src_components_3d_AnalyticalViewSelector_tsx": {
+      "purpose": "Selector superior de modos analíticos (NDVI, Térmico, Hidrología, Topografía).",
+      "props": {
+        "activeMode": "AnalyticalViewMode",
+        "onSelectMode": "(mode: AnalyticalViewMode) => void"
+      }
+    },
+    "src_components_Field3DIsoViewer_tsx": {
+      "purpose": "Componente principal de la maqueta 3D integrada con geometría Land Section, cotas, modos analíticos y vgpu.",
+      "updates": [
+        "Reemplazar base cuadrada fija (11x11) por extrusión procedural del polígono perimetral real.",
+        "Añadir cotas métricas y etiquetas V1..Vn en aristas del perímetro.",
+        "Integrar selector de vistas analíticas coordinadas.",
+        "Proyectar telemetría atmosférica en el espacio aéreo del modelo.",
+        "Vincular shader vgpu para efectos atmosféricos avanzados."
+      ]
+    }
+  },
+
+  "implementation_phases": [
+    {
+      "phase": 1,
+      "name": "Motor de Extrusión Perimetral y Cotas Métricas (Land Section)",
+      "tasks": [
+        "Crear LandSectionPerimeter.ts: normalizador geodésico de coordenadas lat/lng a espacio local 3D.",
+        "Generar THREE.Shape perimetral exacto para cualquier campo (La Esperanza, San Jerónimo, etc.).",
+        "Crear extrusión estratigráfica multicapa (Horizonte A, B, C y Napa freática) siguiendo la silueta real.",
+        "Calcular distancias en metros de cada arista con Haversine y renderizar cotas dimensionales perimetrales."
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Sistema de Vistas Analíticas Coordinadas",
+      "tasks": [
+        "Definir AnalyticalViewMode (ndvi, thermal, moisture, topography).",
+        "Crear AnalyticalViewSelector.tsx con diseño minimalista de botones.",
+        "Implementar shaders y rampas de material para cada modo (mapa de calor térmico, saturación de agua con napa iluminada, curvas de nivel hipsométricas y NDVI).",
+        "Configurar GSAP tweens para transición suave entre vistas sin recargar la escena."
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Telemetría Atmosférica Aérea y Fluctuación del Timelapse",
+      "tasks": [
+        "Crear AtmosphericTelemetryOverlay.tsx proyectado sobre la maqueta en coordenadas 3D.",
+        "Sincronizar telemetría aérea con timelineState (temperatura, precipitación mm, nubosidad).",
+        "Vincular la fluctuación temporal para que al cambiar de fecha se actualicen tanto los datos superiores como el color del relieve."
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Aceleración vgpu (WebGPU) y Pulido Visual",
+      "tasks": [
+        "Integrar efectos vgpu de partículas atmosféricas y ondas de canopia vegetal.",
+        "Asegurar fallback automático y suave si WebGPU no está presente.",
+        "Verificar tasa de 60 FPS y ausencia de fugas de memoria en cambios de campo."
+      ]
+    }
+  ],
+
+  "verification_plan": {
+    "automated": [
+      "npx tsc --noEmit (0 errores de TypeScript)",
+      "npm run build (empaquetado Next.js Turbopack exitoso)"
+    ],
+    "manual": [
+      "Verificar que cada campo en la cartera tenga su forma 3D perimetral única (e.g. La Esperanza vs San Jerónimo).",
+      "Comprobar las cotas métricas dimensionales legibles en las aristas perimetrales.",
+      "Alternar entre las 4 vistas analíticas y validar la actualización de texturas y KPIs.",
+      "Avanzar el timelapse y observar la telemetría aérea y el cambio de colores en el terreno."
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "todos/v1",
+  "feature_id": "field-3d-diorama-multiview",
+  "version": "1.0.0",
+  "status": "pending_execution",
+  "batches": [
+    {
+      "batch": 1,
+      "description": "Geometría Perimetral Real y Cotas Métricas (Land Section)",
+      "tasks": [
+        {
+          "id": "T01",
+          "title": "Crear motor geométrico LandSectionPerimeter.ts con normalización geodésica, extrusión estratigráfica y cálculo de cotas dimensionales",
+          "owner_role": "frontend-3d",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": [],
+          "outputs": ["src/components/3d/LandSectionPerimeter.ts"],
+          "exit_criteria": "Funciones capaces de tomar cualquier polígono de campo y generar Shape 3D, estratos A/B/C ajustados a la silueta, y cotas en metros por arista."
+        }
+      ]
+    },
+    {
+      "batch": 2,
+      "description": "Vistas Analíticas Coordinadas y Transiciones GSAP",
+      "tasks": [
+        {
+          "id": "T02",
+          "title": "Crear componente de selección de vistas analíticas (AnalyticalViewSelector.tsx)",
+          "owner_role": "frontend-ui",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": [],
+          "outputs": ["src/components/3d/AnalyticalViewSelector.tsx"],
+          "exit_criteria": "Selector con 4 modos (NDVI, Térmico, Hidrología, Topografía) estilizado con la paleta Terria."
+        },
+        {
+          "id": "T03",
+          "title": "Implementar rampas de material y tweens de transición en Field3DIsoViewer.tsx para cada modo analítico",
+          "owner_role": "frontend-3d",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01", "T02"],
+          "outputs": ["Field3DIsoViewer.tsx actualizado con soporte multi-vista"],
+          "exit_criteria": "Cambio de vista analítica interpola colores y activa napa/curvas de nivel sin recargar el canvas."
+        }
+      ]
+    },
+    {
+      "batch": 3,
+      "description": "Telemetría Atmosférica en Espacio Aéreo y Efectos vgpu (WebGPU)",
+      "tasks": [
+        {
+          "id": "T04",
+          "title": "Crear AtmosphericTelemetryOverlay.tsx para proyección suspendida sobre el campo 3D",
+          "owner_role": "frontend-ui",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": [],
+          "outputs": ["src/components/3d/AtmosphericTelemetryOverlay.tsx"],
+          "exit_criteria": "HUD flotante en el aire con temperatura, lluvia diaria/7d mm y nubosidad sincronizado con el timelapse."
+        },
+        {
+          "id": "T05",
+          "title": "Integrar acelerador de partículas y micro-relieve vgpu con fallback automático",
+          "owner_role": "frontend-3d",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01", "T03"],
+          "outputs": ["Shader WGSL de ambiente climático y canopia vegetal"],
+          "exit_criteria": "Efectos ambientales renderizados cuando navigator.gpu está disponible, fallback transparente si no."
+        }
+      ]
+    },
+    {
+      "batch": 4,
+      "description": "Integración Final, Validación de Build y Publicación",
+      "tasks": [
+        {
+          "id": "T06",
+          "title": "Unificar maqueta Land Section en Field3DIsoViewer.tsx con cotas perimetrales y telemetría",
+          "owner_role": "frontend-full",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01", "T02", "T03", "T04", "T05"],
+          "outputs": ["Field3DIsoViewer.tsx completo e integrado en page.tsx"],
+          "exit_criteria": "La maqueta muestra el polígono real del campo seleccionado con cotas, vistas analíticas y datos aéreos."
+        },
+        {
+          "id": "T07",
+          "title": "Validación con TypeScript, Next.js build y push a repositorios oficiales de JMReader",
+          "owner_role": "devops",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T06"],
+          "outputs": ["Build 0 errores y ramas remotas actualizadas"],
+          "exit_criteria": "tsc y npm run build limpios; push a JMReader/terria-frontend y JMReader/terria."
+        }
+      ]
+    }
+  ]
+}

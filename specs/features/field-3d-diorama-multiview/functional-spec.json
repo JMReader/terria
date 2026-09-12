@@ -1,0 +1,163 @@
+{
+  "$schema": "functional-spec/v1",
+  "feature_id": "field-3d-diorama-multiview",
+  "title": "Representación 3D del Campo Estilo 'Land Section' Diorama con Geometría Perimetral Real, Vistas Analíticas Coordinadas y Telemetría Atmosférica",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval (Gate 1)",
+
+  "product_context": {
+    "summary": "Rediseño completo de la representación 3D aislada del campo ('Maqueta 3D') para transformarla en un 'Land Section' arquitectónico-agronómico inspirado en la referencia visual (Pinterest https://pin.it/5A3nGT4Q3). El modelo 3D extruye el polígono perimetral real y exacto de cada campo (rompiendo con bloques cuadrados genéricos), incorpora cotas y mediciones dimensionales en los bordes, despliega telemetría atmosférica flotante suspendida sobre el campo y ofrece múltiples vistas analíticas coordinadas que reaccionan a la fluctuación temporal.",
+    "visual_reference": {
+      "source_url": "https://pin.it/5A3nGT4Q3",
+      "concept": "Land Section / Land plot diagram with measurements & stratigraphic soil cutaway",
+      "aesthetic_attributes": [
+        "Bloque de terreno extruido que replica fielmente el polígono perimetral irregular del campo.",
+        "Cotas métricas tipográficas y medidas dimensionales en los bordes de la parcela (longitud de tramos, rumbos, vértices).",
+        "Estratigrafía visible en las paredes de corte lateral (Horizonte A fértil, B arcilloso, C mineral y napa freática).",
+        "Iluminación diorama nítida con sombras suaves de contacto sobre fondo neutro (#f4f6f2).",
+        "Datos atmosféricos y meteorológicos proyectados en el espacio aéreo sobre el campo."
+      ]
+    }
+  },
+
+  "scope": {
+    "in": [
+      "Extrusión 3D fiel y personalizada para cada campo a partir de su geometría perimetral catastral real (boundary GeoJSON del backend y offsets de lotes).",
+      "Cotas dimensionales y mediciones perimetrales técnicas en las aristas del campo (metros por tramo, vértices V1..Vn).",
+      "Múltiples vistas de análisis complementarias e interconectadas (NDVI/Biomasa, Estrés Térmico/ERA5, Hidrología/Humedad, Topografía/Curvas de nivel).",
+      "Telemetría atmosférica flotante en el espacio aéreo superior del campo (temperaturas max/min, lluvias diarias/acumuladas, pronóstico, nubosidad) sincronizada con el timelapse.",
+      "Fluctuación cromática y biofísica en tiempo real del relieve 3D al avanzar el tiempo o cambiar de fecha en el timelapse.",
+      "Integración de shaders WebGPU (vgpu) para micro-relieve, partículas climáticas flotantes y ondas de viento sobre la masa vegetal, con fallback fluido.",
+      "Controles orbitales de rotación 360°, inclinación y presets de cámara de inspección (Iso 45°, Cenital, Perfil Estratigráfico, Perspectiva Frontal)."
+    ],
+    "out": [
+      "Edición manual interactiva de los vértices del polígono (dibujo o recorte de parcelas por parte del usuario).",
+      "Simulación climática CFD (dinámica de fluidos computacional) de viento complejo en microescala."
+    ]
+  },
+
+  "domain_concepts": {
+    "land_section_block": {
+      "definition": "Maqueta tridimensional del establecimiento extruida verticalmente en profundidad a partir de su silueta poligonal real, exponiendo tanto la superficie productiva como los estratos geológicos subsuperficiales.",
+      "attributes": ["silueta_perimetral_exacta", "cotas_metricas_bordes", "paredes_estratigraficas", "napa_freatica_visible"]
+    },
+    "vistas_analiticas": {
+      "definition": "Modos de inspección complementarios del mismo campo que transforman los gradientes de color, texturas y métricas para analizar aspectos agronómicos específicos sin perder la continuidad espacial.",
+      "modes": [
+        {
+          "id": "ndvi_biomass",
+          "name": "Vigor Vegetativo & NDVI",
+          "focus": "Salud fotosintética, biomasa activa y zonificación de lotes (escala de 7 bandas Sentinel-2)."
+        },
+        {
+          "id": "thermal_climate",
+          "name": "Micro-Clima & Dinámica Térmica",
+          "focus": "Gradiente térmico diurno/nocturno, estrés por calor y acumulación de aire frío/heladas en bajos."
+        },
+        {
+          "id": "hydrology_moisture",
+          "name": "Hidrología & Humedad de Suelo",
+          "focus": "Porcentaje de agua útil en perfil radicular, saturación por lluvia y proximidad de napa freática."
+        },
+        {
+          "id": "topography_drainage",
+          "name": "Topografía & Escorrentía",
+          "focus": "Curvas de nivel hipsométricas, pendientes y líneas naturales de drenaje hídrico."
+        }
+      ]
+    },
+    "espacio_aereo_meteorologico": {
+      "definition": "Capa de visualización volumétrica suspendida inmediatamente sobre la maqueta donde se renderizan las condiciones atmosféricas que impactan al campo en la fecha activa del timelapse.",
+      "indicators": ["temperatura_media", "temperatura_max_min", "lluvia_dia_mm", "lluvia_acumulada_7d_mm", "radiacion_nubosidad"]
+    }
+  },
+
+  "user_journeys": [
+    {
+      "id": "UJ-01",
+      "title": "Inspección de Maqueta 3D con Geometría Perimetral Real y Cotas",
+      "actor": "Productor / Inversor / Evaluador",
+      "steps": [
+        "El usuario selecciona un campo en la cartera (e.g. 'La Esperanza' o 'San Jerónimo').",
+        "Hace clic en 'Maqueta 3D' o en una parcela individual.",
+        "Se abre la vista 3D: en lugar de un cubo uniforme, observa el bloque de tierra con la forma geométrica perimetral exacta del campo.",
+        "A lo largo de los bordes perimetrales, lee las cotas con las dimensiones reales en metros de cada límite catastral (e.g., 'Linde Norte: 1.120 m', 'Frente Ruta: 640 m').",
+        "En los cortes laterales verticales observa las capas de suelo fértil, arcilla y el plano de agua subterránea."
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-01.1",
+          "given": "El usuario selecciona dos campos con formas diferentes ('La Esperanza' vs 'San Jerónimo')",
+          "when": "Abre la maqueta 3D de cada uno",
+          "then": "Las siluetas 3D son visiblemente distintas y respetan la geometría del perímetro catastral de cada campo."
+        },
+        {
+          "id": "AC-01.2",
+          "given": "El modelo 3D está cargado en pantalla",
+          "when": "El usuario inspecciona los bordes del perímetro",
+          "then": "Aparecen cotas métricas dimensionales que indican la longitud en metros de cada tramo perimetral."
+        }
+      ]
+    },
+    {
+      "id": "UJ-02",
+      "title": "Navegación por Vistas Analíticas Coordinadas",
+      "actor": "Agrónomo / Analista de Riesgo",
+      "steps": [
+        "Dentro de la maqueta 3D, el usuario dispone de un selector de vista analítica (Vigor NDVI, Micro-Clima Térmico, Hidrología/Humedad, Topografía).",
+        "Al cambiar de vista (e.g. de NDVI a Hidrología), el campo transiciona sus mapas de color y texturas superficiales sin recargar la escena ni mover la cámara.",
+        "En la vista de Hidrología, los lotes reflejan el % de saturación de agua y la napa freática se ilumina.",
+        "En la vista Térmica, los colores reflejan el gradiente de temperatura superficial con alertas de estrés calórico o heladas.",
+        "En la vista Topográfica, se despliegan curvas de nivel nítidas que muestran los altos y bajos del terreno."
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-02.1",
+          "given": "El usuario está en la maqueta 3D",
+          "when": "Cambia entre los modos analíticos (NDVI, Clima, Humedad, Topografía)",
+          "then": "El modelo 3D actualiza sus texturas y colores sin resetear los controles orbitales ni la posición de la cámara."
+        },
+        {
+          "id": "AC-02.2",
+          "given": "Cualquier vista analítica activa",
+          "when": "El usuario consulta la información",
+          "then": "Los datos numéricos del dock y los pines 3D corresponden exactamente a la métrica de esa vista analítica."
+        }
+      ]
+    },
+    {
+      "id": "UJ-03",
+      "title": "Fluctuación Temporal y Telemetría Atmosférica en el Espacio Aéreo",
+      "actor": "Usuario en general",
+      "steps": [
+        "En la parte superior de la maqueta (espacio aéreo flotante), el usuario visualiza el estado del tiempo del timelapse (temperatura diurna, lluvia acumulada, sol/nubes).",
+        "El usuario avanza la fecha o reproduce el timelapse.",
+        "La telemetría aérea actualiza instantáneamente sus lecturas de temperatura y milímetros de lluvia.",
+        "Simultáneamente, la superficie del campo 3D fluctúa de color (e.g. tras una lluvia de 45 mm, la vista de humedad sube y en las fechas siguientes el NDVI se intensifica a verde bosque)."
+      ],
+      "acceptance_criteria": [
+        {
+          "id": "AC-03.1",
+          "given": "La maqueta 3D está activa",
+          "when": "El timelapse avanza en el tiempo",
+          "then": "Los datos atmosféricos superiores y los colores de la superficie del campo fluctúan coordinadamente en tiempo real."
+        },
+        {
+          "id": "AC-03.2",
+          "given": "Una fecha sin lluvia vs una fecha con evento pluvial severo",
+          "when": "Se reproduce el timelapse",
+          "then": "El cambio en milímetros se refleja en la telemetría superior y en la respuesta de hidratación y verdor de los lotes."
+        }
+      ]
+    }
+  ],
+
+  "business_rules": [
+    "BR-01: La extrusión 3D de cada campo debe originarse estrictamente en las coordenadas de su polígono perimetral, descartando slabs cuadrados genéricos.",
+    "BR-02: La suma de hectáreas y las proporciones de los lotes interiores deben coincidir con la superficie catastral declarada en el backend.",
+    "BR-03: Las cotas perimetrales deben calcularse en metros reales a partir de las distancias geodésicas de los segmentos del polígono.",
+    "BR-04: Todas las vistas analíticas deben compartir el mismo sistema de coordenadas, escala y orientación para garantizar comparabilidad.",
+    "BR-05: El renderizado WebGPU (vgpu) debe operar como acelerador visual de micro-relieve y efectos ambientales, con soporte asegurado para navegadores sin navigator.gpu.",
+    "BR-06: La interacción de rotación 360° y zoom debe mantener una tasa mínima de 60 cuadros por segundo sin recrear mallas durante las transiciones temporales."
+  ]
+}
