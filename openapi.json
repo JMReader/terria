@@ -3,10 +3,598 @@
   "info": {
     "title": "TERRIA API",
     "summary": "Backend for the shareable history of a field.",
-    "description": "Initial CRUD API for fields and public field passports.",
+    "description": "Initial CRUD API for fields, public field passports, and timelapse engine.",
     "version": "0.1.0"
   },
   "paths": {
+    "/v1/fields/{field_id}/timelapses": {
+      "post": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Create or queue a timelapse dataset generation job",
+        "operationId": "create_or_get_timelapse_v1_fields__field_id__timelapses_post",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimelapseJobCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TimelapseJobResponse"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "title": "Response Create Or Get Timelapse V1 Fields  Field Id  Timelapses Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "List generated timelapse datasets for a field",
+        "operationId": "list_field_timelapses_v1_fields__field_id__timelapses_get",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimelapseDatasetSummary"
+                  },
+                  "title": "Response List Field Timelapses V1 Fields  Field Id  Timelapses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/timelapse-jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Get status of a timelapse generation job",
+        "operationId": "get_timelapse_job_v1_timelapse_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelapseJobResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fields/{field_id}/timelapses/{dataset_id}": {
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Get private timelapse manifest",
+        "operationId": "get_timelapse_manifest_v1_fields__field_id__timelapses__dataset_id__get",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelapseManifest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fields/{field_id}/timelapses/{dataset_id}/frames/{frame_id}": {
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Get details and asset URLs for a specific frame",
+        "operationId": "get_timelapse_frame_v1_fields__field_id__timelapses__dataset_id__frames__frame_id__get",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelapseFrame"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fields/{field_id}/timelapses/{dataset_id}/frames/{frame_id}/assets/{layer}": {
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Download or view RGB / NDVI asset image for a frame",
+        "operationId": "get_timelapse_frame_asset_v1_fields__field_id__timelapses__dataset_id__frames__frame_id__assets__layer__get",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "rgb",
+                "ndvi"
+              ],
+              "type": "string",
+              "title": "Layer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fields/{field_id}/timelapses/{dataset_id}/timeline-state": {
+      "get": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Get resolved timeline state for a given date",
+        "operationId": "get_timeline_state_v1_fields__field_id__timelapses__dataset_id__timeline_state_get",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fields/{field_id}/timelapses/{dataset_id}/publish": {
+      "post": {
+        "tags": [
+          "Timelapse"
+        ],
+        "summary": "Publish timelapse dataset for the public field passport",
+        "operationId": "publish_timelapse_v1_fields__field_id__timelapses__dataset_id__publish_post",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Publish Timelapse V1 Fields  Field Id  Timelapses  Dataset Id  Publish Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/fields/{public_slug}/timelapse": {
+      "get": {
+        "tags": [
+          "Public fields"
+        ],
+        "summary": "Get public timelapse manifest for a published field",
+        "operationId": "get_public_timelapse_v1_public_fields__public_slug__timelapse_get",
+        "parameters": [
+          {
+            "name": "public_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Public Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTimelapseManifest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/fields/{public_slug}/timelapse/frames/{frame_id}/assets/{layer}": {
+      "get": {
+        "tags": [
+          "Public fields"
+        ],
+        "summary": "Get asset image for a published field frame",
+        "operationId": "get_public_timelapse_asset_v1_public_fields__public_slug__timelapse_frames__frame_id__assets__layer__get",
+        "parameters": [
+          {
+            "name": "public_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Public Slug"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          },
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "rgb",
+                "ndvi"
+              ],
+              "type": "string",
+              "title": "Layer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/debug/timelapse": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Debug Timelapse Page",
+        "operationId": "debug_timelapse_page_debug_timelapse_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -355,6 +943,82 @@
   },
   "components": {
     "schemas": {
+      "AssetResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "rgb",
+              "ndvi"
+            ],
+            "title": "Layer"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "crs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crs",
+            "default": "EPSG:4326"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "layer",
+          "url",
+          "width",
+          "height"
+        ],
+        "title": "AssetResponse"
+      },
       "FieldCreate": {
         "properties": {
           "name": {
@@ -600,6 +1264,28 @@
         "type": "object",
         "title": "FieldUpdate"
       },
+      "FrameQuality": {
+        "properties": {
+          "valid_area_fraction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Valid Area Fraction"
+          },
+          "valid_pixel_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Valid Pixel Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "valid_area_fraction",
+          "valid_pixel_count"
+        ],
+        "title": "FrameQuality"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -612,6 +1298,63 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "NdviMetrics": {
+        "properties": {
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "p10": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P10"
+          },
+          "p90": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NdviMetrics"
+      },
+      "PlaybackConfig": {
+        "properties": {
+          "max_image_age_days": {
+            "type": "integer",
+            "title": "Max Image Age Days",
+            "default": 10
+          },
+          "step_days": {
+            "type": "integer",
+            "title": "Step Days",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PlaybackConfig"
       },
       "PolygonGeometry": {
         "properties": {
@@ -721,6 +1464,120 @@
         ],
         "title": "PublicFieldResponse"
       },
+      "PublicTimelapseManifest": {
+        "properties": {
+          "dataset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Dataset Id"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1",
+            "title": "Schema Version",
+            "default": "1"
+          },
+          "processing_version": {
+            "type": "string",
+            "title": "Processing Version"
+          },
+          "geometry_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Geometry Version Id"
+          },
+          "boundary": {
+            "$ref": "#/components/schemas/PolygonGeometry"
+          },
+          "area_hectares": {
+            "type": "number",
+            "title": "Area Hectares"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "America/Argentina/Cordoba"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": false
+          },
+          "playback": {
+            "$ref": "#/components/schemas/PlaybackConfig"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/TimelapseFrame"
+            },
+            "type": "array",
+            "title": "Frames",
+            "default": []
+          },
+          "weather_daily": {
+            "items": {
+              "$ref": "#/components/schemas/WeatherDaily"
+            },
+            "type": "array",
+            "title": "Weather Daily",
+            "default": []
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/TimelapseSource"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "missing_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Reasons",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "processing_version",
+          "geometry_version_id",
+          "boundary",
+          "area_hectares",
+          "start_date",
+          "end_date",
+          "status",
+          "generated_at"
+        ],
+        "title": "PublicTimelapseManifest"
+      },
       "PublishResponse": {
         "properties": {
           "public_slug": {
@@ -739,6 +1596,566 @@
           "public_url"
         ],
         "title": "PublishResponse"
+      },
+      "SatelliteState": {
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Frame Id"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "age_days": {
+            "type": "integer",
+            "title": "Age Days"
+          },
+          "ndvi": {
+            "$ref": "#/components/schemas/NdviMetrics"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/FrameQuality"
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetResponse"
+            },
+            "type": "array",
+            "title": "Assets",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "frame_id",
+          "observed_at",
+          "age_days",
+          "ndvi",
+          "quality"
+        ],
+        "title": "SatelliteState"
+      },
+      "TimelapseDatasetSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "field_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Field Id"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "frames_count": {
+            "type": "integer",
+            "title": "Frames Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "field_id",
+          "start_date",
+          "end_date",
+          "status",
+          "is_demo",
+          "generated_at",
+          "frames_count"
+        ],
+        "title": "TimelapseDatasetSummary"
+      },
+      "TimelapseFrame": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "local_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Local Date"
+          },
+          "source_item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Item Ids",
+            "default": []
+          },
+          "usable": {
+            "type": "boolean",
+            "title": "Usable"
+          },
+          "valid_area_fraction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Valid Area Fraction"
+          },
+          "valid_pixel_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Valid Pixel Count",
+            "default": 0
+          },
+          "ndvi": {
+            "$ref": "#/components/schemas/NdviMetrics"
+          },
+          "missing_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Reason"
+          },
+          "available_layers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Layers",
+            "default": [
+              "rgb",
+              "ndvi"
+            ]
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetResponse"
+            },
+            "type": "array",
+            "title": "Assets",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "observed_at",
+          "local_date",
+          "usable",
+          "valid_area_fraction"
+        ],
+        "title": "TimelapseFrame"
+      },
+      "TimelapseJobCreate": {
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "layers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Layers",
+            "default": [
+              "rgb",
+              "ndvi"
+            ]
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "title": "TimelapseJobCreate"
+      },
+      "TimelapseJobResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "field_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Field Id"
+          },
+          "geometry_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Geometry Version Id"
+          },
+          "request_hash": {
+            "type": "string",
+            "title": "Request Hash"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "ready",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Progress"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "field_id",
+          "geometry_version_id",
+          "request_hash",
+          "status",
+          "progress",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TimelapseJobResponse"
+      },
+      "TimelapseManifest": {
+        "properties": {
+          "dataset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Dataset Id"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1",
+            "title": "Schema Version",
+            "default": "1"
+          },
+          "processing_version": {
+            "type": "string",
+            "title": "Processing Version"
+          },
+          "field_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Field Id"
+          },
+          "geometry_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Geometry Version Id"
+          },
+          "boundary": {
+            "$ref": "#/components/schemas/PolygonGeometry"
+          },
+          "area_hectares": {
+            "type": "number",
+            "title": "Area Hectares"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "title": "End Date"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "America/Argentina/Cordoba"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": false
+          },
+          "playback": {
+            "$ref": "#/components/schemas/PlaybackConfig"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/TimelapseFrame"
+            },
+            "type": "array",
+            "title": "Frames",
+            "default": []
+          },
+          "weather_daily": {
+            "items": {
+              "$ref": "#/components/schemas/WeatherDaily"
+            },
+            "type": "array",
+            "title": "Weather Daily",
+            "default": []
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/TimelapseSource"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "missing_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Reasons",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "processing_version",
+          "field_id",
+          "geometry_version_id",
+          "boundary",
+          "area_hectares",
+          "start_date",
+          "end_date",
+          "status",
+          "generated_at"
+        ],
+        "title": "TimelapseManifest"
+      },
+      "TimelapseSource": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retrieved At"
+          },
+          "documentation_url": {
+            "type": "string",
+            "title": "Documentation Url"
+          },
+          "attribution": {
+            "type": "string",
+            "title": "Attribution"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "dataset",
+          "retrieved_at",
+          "documentation_url",
+          "attribution"
+        ],
+        "title": "TimelapseSource"
+      },
+      "TimelineState": {
+        "properties": {
+          "selected_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Selected Date"
+          },
+          "dataset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Dataset Id"
+          },
+          "geometry_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Geometry Version Id"
+          },
+          "satellite": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SatelliteState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weather": {
+            "$ref": "#/components/schemas/WeatherState"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/TimelapseSource"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "missing_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Reasons",
+            "default": []
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selected_date",
+          "dataset_id",
+          "geometry_version_id",
+          "weather"
+        ],
+        "title": "TimelineState"
       },
       "ValidationError": {
         "properties": {
@@ -779,6 +2196,140 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WeatherDaily": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "precipitation_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precipitation Mm"
+          },
+          "precipitation_7d_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precipitation 7D Mm"
+          },
+          "temperature_min_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Min C"
+          },
+          "temperature_max_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Max C"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id",
+            "default": "open-meteo-era5"
+          },
+          "missing_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "title": "WeatherDaily"
+      },
+      "WeatherState": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "precipitation_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precipitation Mm"
+          },
+          "precipitation_7d_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precipitation 7D Mm"
+          },
+          "temperature_min_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Min C"
+          },
+          "temperature_max_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Max C"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "title": "WeatherState"
       }
     }
   },
@@ -794,6 +2345,10 @@
     {
       "name": "Public fields",
       "description": "Shareable field passports."
+    },
+    {
+      "name": "Timelapse",
+      "description": "Field history and temporal observations."
     }
   ]
 }

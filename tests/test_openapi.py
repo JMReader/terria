@@ -8,6 +8,10 @@ def test_openapi_has_the_field_crud_contract() -> None:
     assert schema["openapi"] == "3.1.0"
     assert "/v1/fields" in schema["paths"]
     assert "/v1/public/fields/{public_slug}" in schema["paths"]
+    assert "/v1/fields/{field_id}/timelapses" in schema["paths"]
+    assert "/v1/timelapse-jobs/{job_id}" in schema["paths"]
+    assert "/v1/public/fields/{public_slug}/timelapse" in schema["paths"]
+    assert "/debug/timelapse" in schema["paths"]
 
 
 def test_field_can_be_created_published_and_read_publicly() -> None:

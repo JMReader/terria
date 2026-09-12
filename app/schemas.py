@@ -23,10 +23,13 @@ class PolygonGeometry(StrictModel):
     def requires_a_closed_ring(cls, rings: list[list[Position]]) -> list[list[Position]]:
         if not rings or len(rings[0]) < 4 or rings[0][0] != rings[0][-1]:
             raise ValueError("A polygon requires a closed outer ring with at least four positions")
-        for position in rings[0]:
-            longitude, latitude = position[:2]
-            if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
-                raise ValueError("Coordinates must be valid WGS84 longitude/latitude values")
+        for ring in rings:
+            if len(ring) < 4 or ring[0] != ring[-1]:
+                raise ValueError("All polygon rings must be closed with at least four positions")
+            for position in ring:
+                longitude, latitude = position[:2]
+                if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+                    raise ValueError("Coordinates must be valid WGS84 longitude/latitude values")
         return rings
 
 

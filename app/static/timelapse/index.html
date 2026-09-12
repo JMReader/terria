@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TERRIA — Timelapse Diagnostics</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-bright: #f0f6fc;
+      --accent: #238636;
+      --accent-hover: #2ea043;
+      --accent-blue: #388bfd;
+      --accent-amber: #d29922;
+      --accent-red: #f85149;
+      --code-bg: #090d12;
+      --highlight-bg: rgba(210, 153, 34, 0.35);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 18px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .brand { font-size: 20px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 8px; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-demo { background: rgba(210, 153, 34, 0.2); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+    .badge-real { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #3fb950; }
+    .badge-partial { background: rgba(56, 139, 253, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+
+    /* Setup Bar */
+    .setup-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    select, input[type="date"], input[type="text"], button {
+      background: #21262d;
+      border: 1px solid var(--card-border);
+      color: var(--text-bright);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent-blue); }
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-primary { background: var(--accent); border-color: rgba(240, 246, 252, 0.1); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #21262d; color: var(--text); }
+    .btn-secondary:hover { background: #30363d; }
+    .mode-group {
+      display: flex;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .mode-btn {
+      padding: 7px 12px;
+      border-radius: 0;
+      border: none;
+      background: #21262d;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .mode-btn.active {
+      background: #30363d;
+      color: var(--text-bright);
+      font-weight: 700;
+    }
+
+    /* Quick Datasets */
+    .quick-datasets {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(48, 54, 61, 0.5);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .ds-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #21262d;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .ds-pill:hover { border-color: var(--accent-blue); color: var(--text-bright); }
+
+    /* Alerts */
+    .alert {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .alert-warning { background: rgba(210, 153, 34, 0.15); border: 1px solid var(--accent-amber); color: #e3b341; }
+    .alert-error { background: rgba(248, 81, 73, 0.15); border: 1px solid var(--accent-red); color: #f85149; }
+    .alert-info { background: rgba(56, 139, 253, 0.15); border: 1px solid var(--accent-blue); color: #79c0ff; }
+
+    /* Timeline scrub bar */
+    .timeline-scrubber {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .timeline-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .date-indicator {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+    .sub-indicator {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .slider-container { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+      height: 6px;
+    }
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grid Layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 16px;
+    }
+    @media (max-width: 950px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Cards */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .card-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-bright);
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .card-unit { font-size: 12px; color: var(--text-muted); font-weight: normal; }
+    .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Visual preview */
+    .preview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .layer-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      align-self: flex-start;
+    }
+    .preview-stage {
+      width: 256px;
+      height: 256px;
+      border: 1px dashed var(--card-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #090d12;
+      position: relative;
+      overflow: hidden;
+    }
+    .preview-img {
+      width: 256px;
+      height: 256px;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .preview-placeholder {
+      padding: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .preview-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 10px;
+      width: 100%;
+      text-align: left;
+    }
+
+    /* JSON Panel */
+    .json-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .json-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #1f242c;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .json-title { font-size: 12px; font-weight: 700; color: var(--text-bright); }
+    .json-body {
+      background: var(--code-bg);
+      padding: 14px;
+      overflow: auto;
+      height: 560px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #7ee787;
+      white-space: pre-wrap;
+    }
+    .highlight-flash {
+      animation: flash-highlight 0.8s ease-out;
+    }
+    @keyframes flash-highlight {
+      0% { background: rgba(210, 153, 34, 0.7); color: #fff; }
+      100% { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>TERRIA</span>
+      <span style="font-weight: normal; font-size: 14px; color: var(--text-muted);">| Diagnóstico de Timelapse MVP</span>
+    </div>
+    <div id="status-badge" class="badge badge-demo">Demo Sintética</div>
+  </header>
+
+  <!-- Setup Bar -->
+  <div class="setup-panel">
+    <div class="form-group">
+      <label for="field-select">Campo</label>
+      <select id="field-select"><option value="">Cargando campos...</option></select>
+    </div>
+
+    <div class="form-group">
+      <label>Modo de Datos</label>
+      <div class="mode-group">
+        <button id="mode-demo" class="mode-btn active" onclick="setMode('demo')">✨ Demo Sintética (con imágenes)</button>
+        <button id="mode-real" class="mode-btn" onclick="setMode('real')">☀️ Clima Real (Open-Meteo ERA5)</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="date-start">Desde</label>
+      <input type="date" id="date-start" value="2024-01-01">
+    </div>
+
+    <div class="form-group">
+      <label for="date-end">Hasta</label>
+      <input type="date" id="date-end" value="2024-03-31">
+    </div>
+
+    <div class="form-group">
+      <button id="btn-load" class="btn-primary" onclick="requestDataset()">Cargar Historial</button>
+    </div>
+
+    <div class="quick-datasets">
+      <span>Datasets existentes en base de datos:</span>
+      <div id="quick-pills" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+    </div>
+  </div>
+
+  <!-- Banners / Alerts -->
+  <div id="alert-box" class="alert"></div>
+
+  <!-- Timeline Scrubber -->
+  <div class="timeline-scrubber">
+    <div class="timeline-info">
+      <div>
+        <div id="date-display" class="date-indicator">----/--/--</div>
+        <div id="capture-display" class="sub-indicator">Captura satelital: Ninguna seleccionada</div>
+      </div>
+      <div id="age-badge" class="badge badge-demo" style="display: none;"></div>
+    </div>
+
+    <div class="slider-container">
+      <input type="range" id="timeline-slider" min="0" max="0" value="0" oninput="onSliderMove(this.value)">
+    </div>
+
+    <div class="playback-controls">
+      <button class="btn-secondary" onclick="stepDate(-1)">◀ Anterior</button>
+      <button id="btn-play" class="btn-secondary" onclick="togglePlay()">▶ Reproducir</button>
+      <button class="btn-secondary" onclick="stepDate(1)">Siguiente ▶</button>
+
+      <span style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Velocidad:</span>
+      <select id="speed-select" style="padding: 4px 8px; font-size: 11px;">
+        <option value="1">1x (1 día/seg)</option>
+        <option value="2">2x (2 días/seg)</option>
+        <option value="4">4x (4 días/seg)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="main-grid">
+    <!-- Left Column: Cards + Preview -->
+    <div>
+      <div class="cards-row">
+        <!-- NDVI Card -->
+        <div class="card">
+          <div class="card-title">Índice NDVI (Vigor)</div>
+          <div class="card-value" id="card-ndvi">—</div>
+          <div class="card-sub" id="card-ndvi-sub">Observación satelital</div>
+        </div>
+
+        <!-- Daily Rain -->
+        <div class="card">
+          <div class="card-title">Lluvia Diaria</div>
+          <div class="card-value" id="card-rain-day">— <span class="card-unit">mm</span></div>
+          <div class="card-sub" id="card-rain-day-sub">Día seleccionado</div>
+        </div>
+
+        <!-- 7-Day Accumulated Rain -->
+        <div class="card">
+          <div class="card-title">Lluvia Acum. 7 Días</div>
+          <div class="card-value" id="card-rain-7d">— <span class="card-unit">mm</span></div>
+          <div class="card-sub" id="card-rain-7d-sub">Ventana inclusiva D-6 a D</div>
+        </div>
+
+        <!-- Temperatures -->
+        <div class="card">
+          <div class="card-title">Temperaturas (Mín / Máx)</div>
+          <div class="card-value" id="card-temp">—</div>
+          <div class="card-sub" id="card-temp-sub">Reanálisis ERA5</div>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-card">
+        <div class="layer-selector">
+          <button id="btn-layer-rgb" class="mode-btn active" onclick="setLayer('rgb')">RGB (Óptico)</button>
+          <button id="btn-layer-ndvi" class="mode-btn" onclick="setLayer('ndvi')">NDVI (Falso color)</button>
+        </div>
+
+        <div class="preview-stage">
+          <img id="preview-img" class="preview-img" style="display: none;" alt="Satelital">
+          <div id="preview-placeholder" class="preview-placeholder">Sin imagen cargada</div>
+        </div>
+
+        <div id="preview-meta" class="preview-meta"></div>
+      </div>
+    </div>
+
+    <!-- Right Column: JSON Viewer -->
+    <div class="json-panel">
+      <div class="json-header">
+        <div class="json-title">JSON Completo del Estado (Fecha Seleccionada)</div>
+        <button class="btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="copyJson()">📋 Copiar JSON</button>
+      </div>
+      <div id="json-viewer" class="json-body">{}</div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentMode = 'demo'; // 'demo' | 'real'
+    let currentLayer = 'rgb'; // 'rgb' | 'ndvi'
+    let currentManifest = null;
+    let daysArray = []; // Array of YYYY-MM-DD
+    let selectedDateIndex = 0;
+    let isPlaying = false;
+    let playTimer = null;
+    let selectionId = 0;
+    let prevSelectedState = null;
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadFields();
+    });
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('mode-demo').classList.toggle('active', mode === 'demo');
+      document.getElementById('mode-real').classList.toggle('active', mode === 'real');
+      const badge = document.getElementById('status-badge');
+      if (mode === 'demo') {
+        badge.className = 'badge badge-demo';
+        badge.textContent = 'Demo Sintética';
+        document.getElementById('date-end').value = '2024-03-31';
+      } else {
+        badge.className = 'badge badge-real';
+        badge.textContent = 'Datos Reales';
+        document.getElementById('date-end').value = '2024-01-31';
+      }
+    }
+
+    function setLayer(layer) {
+      currentLayer = layer;
+      document.getElementById('btn-layer-rgb').classList.toggle('active', layer === 'rgb');
+      document.getElementById('btn-layer-ndvi').classList.toggle('active', layer === 'ndvi');
+      renderSelectedDate();
+    }
+
+    async function loadFields() {
+      try {
+        const res = await fetch('/v1/fields');
+        const fields = await res.json();
+        const select = document.getElementById('field-select');
+        select.innerHTML = '';
+
+        if (!fields || fields.length === 0) {
+          select.innerHTML = '<option value="">(Sin campos - ejecutá seed-demo)</option>';
+          showAlert('No se encontraron campos. Ejecutá "uv run python -m app.timelapse.cli seed-demo" para cargar datos iniciales.', 'warning');
+          return;
+        }
+
+        fields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = `${f.name} (${f.province || f.country || 'Campo'})`;
+          select.appendChild(opt);
+        });
+
+        select.onchange = () => loadExistingDatasetsForField(select.value);
+        await loadExistingDatasetsForField(fields[0].id);
+
+      } catch (err) {
+        showAlert('Error al consultar /v1/fields: ' + err.message, 'error');
+      }
+    }
+
+    async function loadExistingDatasetsForField(fieldId) {
+      const pillsContainer = document.getElementById('quick-pills');
+      pillsContainer.innerHTML = '';
+      try {
+        const res = await fetch(`/v1/fields/${fieldId}/timelapses`);
+        if (!res.ok) return;
+        const list = await res.json();
+        if (!list || list.length === 0) {
+          pillsContainer.innerHTML = '<span style="font-style: italic;">Ninguno aún para este campo</span>';
+          return;
+        }
+
+        list.forEach(item => {
+          const pill = document.createElement('button');
+          pill.className = 'ds-pill';
+          const tag = item.is_demo ? '✨ Demo' : '☀️ Real';
+          pill.textContent = `${tag}: ${item.start_date} → ${item.end_date} (${item.status})`;
+          pill.onclick = () => loadManifestDirectly(fieldId, item.id);
+          pillsContainer.appendChild(pill);
+        });
+
+        // Automatically load the first ready dataset
+        const readyDs = list.find(d => d.status === 'ready' || d.status === 'partial');
+        if (readyDs) {
+          await loadManifestDirectly(fieldId, readyDs.id);
+        }
+
+      } catch (err) {
+        console.warn('Could not load existing datasets:', err);
+      }
+    }
+
+    async function loadManifestDirectly(fieldId, datasetId) {
+      showAlert('Cargando dataset ' + datasetId + '...', 'info');
+      try {
+        const res = await fetch(`/v1/fields/${fieldId}/timelapses/${datasetId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const manifest = await res.json();
+        setupManifest(manifest);
+        hideAlert();
+      } catch (err) {
+        showAlert('Error cargando manifest: ' + err.message, 'error');
+      }
+    }
+
+    async function requestDataset() {
+      const fieldId = document.getElementById('field-select').value;
+      if (!fieldId) {
+        showAlert('Por favor seleccione un campo.', 'warning');
+        return;
+      }
+      const startDate = document.getElementById('date-start').value;
+      const endDate = document.getElementById('date-end').value;
+      const isDemo = currentMode === 'demo';
+
+      showAlert('Solicitando generación de dataset...', 'info');
+
+      try {
+        const res = await fetch(`/v1/fields/${fieldId}/timelapses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate,
+            layers: ['rgb', 'ndvi'],
+            is_demo: isDemo
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.status === 200 && data.dataset_id) {
+          // Ready dataset exists
+          await loadManifestDirectly(fieldId, data.dataset_id);
+        } else if (res.status === 202) {
+          // Job queued
+          showAlert(`Trabajo encolado (${data.id}). Si el worker CLI no está corriendo, ejecutá "uv run python -m app.timelapse.cli run-worker --once" o elegí un dataset existente arriba.`, 'info');
+          pollJob(data.id, fieldId);
+        } else {
+          showAlert('Respuesta inesperada: ' + JSON.stringify(data), 'error');
+        }
+      } catch (err) {
+        showAlert('Error al solicitar dataset: ' + err.message, 'error');
+      }
+    }
+
+    async function pollJob(jobId, fieldId) {
+      let attempts = 0;
+      const maxAttempts = 30;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/v1/timelapse-jobs/${jobId}`);
+          if (!res.ok) return;
+          const job = await res.json();
+          if (job.status === 'ready' || job.status === 'partial') {
+            clearInterval(interval);
+            await loadManifestDirectly(fieldId, job.dataset_id);
+          } else if (job.status === 'failed') {
+            clearInterval(interval);
+            showAlert(`El trabajo falló: ${job.error_message || job.error_code}`, 'error');
+          } else {
+            showAlert(`Procesando trabajo (${Math.round(job.progress * 100)}%)...`, 'info');
+          }
+        } catch (e) {
+          console.warn('Poll error:', e);
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          showAlert('Tiempo de espera agotado. Podés procesarlo en terminal con: uv run python -m app.timelapse.cli run-worker --once', 'warning');
+        }
+      }, 2000);
+    }
+
+    function setupManifest(manifest) {
+      currentManifest = manifest;
+      currentMode = manifest.is_demo ? 'demo' : 'real';
+      setMode(currentMode);
+
+      // Generate daysArray from start_date to end_date
+      daysArray = [];
+      let cur = new Date(manifest.start_date + 'T00:00:00Z');
+      const end = new Date(manifest.end_date + 'T00:00:00Z');
+      while (cur <= end) {
+        daysArray.push(cur.toISOString().split('T')[0]);
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+
+      const slider = document.getElementById('timeline-slider');
+      slider.min = 0;
+      slider.max = daysArray.length - 1;
+      slider.value = 0;
+      selectedDateIndex = 0;
+
+      if (manifest.status === 'partial') {
+        showAlert('Dataset parcial: Clima histórico real disponible; datos satelitales ausentes por credenciales CDSE no configuradas.', 'warning');
+      }
+
+      renderSelectedDate();
+    }
+
+    // Deterministic Client-Side State Selector
+    function computeStateForDate(manifest, selectedDateStr) {
+      const missingReasons = [...(manifest.missing_reasons || [])];
+
+      // 1. Weather strictly on selectedDateStr
+      const weatherEntry = (manifest.weather_daily || []).find(w => w.date === selectedDateStr);
+      let weatherState;
+      if (weatherEntry) {
+        weatherState = {
+          date: weatherEntry.date,
+          precipitation_mm: weatherEntry.precipitation_mm,
+          precipitation_7d_mm: weatherEntry.precipitation_7d_mm,
+          temperature_min_c: weatherEntry.temperature_min_c,
+          temperature_max_c: weatherEntry.temperature_max_c
+        };
+        if (weatherEntry.missing_reason) {
+          missingReasons.push(`WEATHER_${weatherEntry.missing_reason}`);
+        }
+      } else {
+        weatherState = {
+          date: selectedDateStr,
+          precipitation_mm: null,
+          precipitation_7d_mm: null,
+          temperature_min_c: null,
+          temperature_max_c: null
+        };
+        missingReasons.push(`NO_WEATHER_FOR_DATE: ${selectedDateStr}`);
+      }
+
+      // 2. Satellite: latest usable observation on or prior to selectedDateStr
+      const candidates = (manifest.frames || []).filter(f => f.usable && f.local_date <= selectedDateStr);
+      candidates.sort((a, b) => (b.local_date || '').localeCompare(a.local_date || ''));
+
+      let satelliteState = null;
+      const maxAge = manifest.playback?.max_image_age_days ?? 10;
+
+      if (candidates.length === 0) {
+        missingReasons.push(`NO_SATELLITE_OBSERVATION: No usable observation on or before ${selectedDateStr}`);
+      } else {
+        const latest = candidates[0];
+        const dateDiffDays = Math.round((new Date(selectedDateStr + 'T00:00:00Z') - new Date(latest.local_date + 'T00:00:00Z')) / (1000 * 60 * 60 * 24));
+        if (dateDiffDays > maxAge) {
+          missingReasons.push(`MAX_IMAGE_AGE_EXCEEDED: Most recent observation was ${dateDiffDays} days ago (limit: ${maxAge} days)`);
+        } else {
+          satelliteState = {
+            frame_id: latest.id,
+            observed_at: latest.observed_at,
+            age_days: dateDiffDays,
+            ndvi: latest.ndvi,
+            quality: {
+              valid_area_fraction: latest.valid_area_fraction,
+              valid_pixel_count: latest.valid_pixel_count
+            },
+            assets: latest.assets || []
+          };
+        }
+      }
+
+      return {
+        selected_date: selectedDateStr,
+        dataset_id: manifest.dataset_id,
+        geometry_version_id: manifest.geometry_version_id,
+        satellite: satelliteState,
+        weather: weatherState,
+        sources: manifest.sources,
+        missing_reasons: missingReasons,
+        is_demo: manifest.is_demo
+      };
+    }
+
+    function onSliderMove(value) {
+      selectedDateIndex = parseInt(value, 10);
+      renderSelectedDate();
+    }
+
+    function stepDate(delta) {
+      if (!daysArray.length) return;
+      selectedDateIndex = Math.max(0, Math.min(daysArray.length - 1, selectedDateIndex + delta));
+      document.getElementById('timeline-slider').value = selectedDateIndex;
+      renderSelectedDate();
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('btn-play');
+      if (isPlaying) {
+        btn.textContent = '⏸ Pausar';
+        const speed = parseFloat(document.getElementById('speed-select').value) || 1;
+        const intervalMs = 1000 / speed;
+        playTimer = setInterval(() => {
+          if (selectedDateIndex >= daysArray.length - 1) {
+            selectedDateIndex = 0;
+          } else {
+            selectedDateIndex++;
+          }
+          document.getElementById('timeline-slider').value = selectedDateIndex;
+          renderSelectedDate();
+        }, intervalMs);
+      } else {
+        btn.textContent = '▶ Reproducir';
+        clearInterval(playTimer);
+      }
+    }
+
+    function renderSelectedDate() {
+      if (!currentManifest || !daysArray.length) return;
+
+      const currentSelectionId = ++selectionId;
+      const dateStr = daysArray[selectedDateIndex];
+      document.getElementById('date-display').textContent = dateStr;
+
+      // Compute state synchronously over in-memory dataset
+      const state = computeStateForDate(currentManifest, dateStr);
+
+      // Verify that no late async response overrides
+      if (currentSelectionId !== selectionId) return;
+
+      // Update UI cards
+      updateCards(state);
+
+      // Update Preview Image
+      updatePreview(state);
+
+      // Update JSON panel with highlight
+      updateJsonViewer(state);
+
+      prevSelectedState = state;
+    }
+
+    function updateCards(state) {
+      const ageBadge = document.getElementById('age-badge');
+      const captureDisplay = document.getElementById('capture-display');
+
+      if (state.satellite) {
+        const obsDate = state.satellite.observed_at.split('T')[0];
+        captureDisplay.textContent = `Captura satelital: ${obsDate} (hace ${state.satellite.age_days} días)`;
+        ageBadge.style.display = 'inline-block';
+        if (state.satellite.age_days === 0) {
+          ageBadge.className = 'badge badge-real';
+          ageBadge.textContent = 'Captura de hoy';
+        } else if (state.satellite.age_days <= 5) {
+          ageBadge.className = 'badge badge-real';
+          ageBadge.textContent = `Hace ${state.satellite.age_days} días (Óptimo)`;
+        } else {
+          ageBadge.className = 'badge badge-partial';
+          ageBadge.textContent = `Hace ${state.satellite.age_days} días`;
+        }
+
+        const meanNdvi = state.satellite.ndvi?.mean;
+        document.getElementById('card-ndvi').textContent = meanNdvi !== null ? meanNdvi.toFixed(2) : '—';
+        document.getElementById('card-ndvi-sub').textContent = `Área válida: ${Math.round((state.satellite.quality?.valid_area_fraction || 0) * 100)}% | Captura: ${obsDate}`;
+      } else {
+        captureDisplay.textContent = 'Captura satelital: Sin observación utilizable';
+        ageBadge.style.display = 'inline-block';
+        ageBadge.className = 'badge badge-demo';
+        ageBadge.textContent = 'Sin imagen (antigüedad > 10d o inicio)';
+        document.getElementById('card-ndvi').textContent = '—';
+        document.getElementById('card-ndvi-sub').textContent = 'Sin observación satelital válida';
+      }
+
+      // Weather Cards
+      const w = state.weather;
+      if (w.precipitation_mm !== null) {
+        document.getElementById('card-rain-day').innerHTML = `${w.precipitation_mm.toFixed(1)} <span class="card-unit">mm</span>`;
+        document.getElementById('card-rain-day-sub').textContent = w.precipitation_mm === 0.0 ? '0.0 mm (Día sin lluvia)' : 'Lluvia registrada';
+      } else {
+        document.getElementById('card-rain-day').innerHTML = `N/D <span class="card-unit"></span>`;
+        document.getElementById('card-rain-day-sub').textContent = 'Dato ausente';
+      }
+
+      if (w.precipitation_7d_mm !== null) {
+        document.getElementById('card-rain-7d').innerHTML = `${w.precipitation_7d_mm.toFixed(1)} <span class="card-unit">mm</span>`;
+        document.getElementById('card-rain-7d-sub').textContent = 'Suma de 7 días completa';
+      } else {
+        document.getElementById('card-rain-7d').innerHTML = `N/D <span class="card-unit"></span>`;
+        document.getElementById('card-rain-7d-sub').textContent = 'Ventana 7d incompleta (null)';
+      }
+
+      if (w.temperature_min_c !== null && w.temperature_max_c !== null) {
+        document.getElementById('card-temp').innerHTML = `${w.temperature_min_c.toFixed(1)}° <span class="card-unit">a</span> ${w.temperature_max_c.toFixed(1)}°C`;
+        document.getElementById('card-temp-sub').textContent = 'Mínima / Máxima';
+      } else {
+        document.getElementById('card-temp').textContent = '—';
+        document.getElementById('card-temp-sub').textContent = 'Temperaturas ausentes';
+      }
+    }
+
+    function updatePreview(state) {
+      const img = document.getElementById('preview-img');
+      const placeholder = document.getElementById('preview-placeholder');
+      const meta = document.getElementById('preview-meta');
+
+      if (state.satellite && state.satellite.assets && state.satellite.assets.length > 0) {
+        const asset = state.satellite.assets.find(a => a.layer === currentLayer) || state.satellite.assets[0];
+        if (asset && asset.url) {
+          img.src = asset.url;
+          img.style.display = 'block';
+          placeholder.style.display = 'none';
+          meta.innerHTML = `
+            <strong>Capa:</strong> ${asset.layer.toUpperCase()} |
+            <strong>Resolución:</strong> ${asset.width}x${asset.height} px (${asset.crs})<br>
+            <strong>SHA256:</strong> <code>${(asset.sha256 || '').substring(0, 16)}...</code>
+          `;
+          return;
+        }
+      }
+
+      img.style.display = 'none';
+      placeholder.style.display = 'block';
+      if (!state.satellite) {
+        placeholder.innerHTML = '⚠️ <strong>Sin imagen satelital</strong><br><span style="font-size: 11px;">(Antigüedad > 10 días o fecha previa a primera captura)</span>';
+      } else {
+        placeholder.innerHTML = 'ℹ️ Sin asset de imagen generado para esta escena.';
+      }
+      meta.textContent = '';
+    }
+
+    function updateJsonViewer(state) {
+      const viewer = document.getElementById('json-viewer');
+      const formatted = JSON.stringify(state, null, 2);
+
+      // Detect changed keys compared to prevSelectedState
+      const changedKeys = new Set();
+      if (prevSelectedState) {
+        findChangedKeys(prevSelectedState, state, '', changedKeys);
+      }
+
+      // Syntax highlight JSON and apply flashing class to changed lines
+      const lines = formatted.split('\n');
+      const htmlLines = lines.map(line => {
+        let isChanged = false;
+        for (const k of changedKeys) {
+          if (line.includes(`"${k}":`)) {
+            isChanged = true;
+            break;
+          }
+        }
+        const cls = isChanged ? 'highlight-flash' : '';
+        return `<span class="${cls}">${escapeHtml(line)}</span>`;
+      });
+
+      viewer.innerHTML = htmlLines.join('\n');
+    }
+
+    function findChangedKeys(prev, curr, prefix, changedSet) {
+      if (!prev || !curr) return;
+      for (const key of Object.keys(curr)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        const prevVal = prev[key];
+        const currVal = curr[key];
+
+        if (typeof currVal === 'object' && currVal !== null) {
+          if (typeof prevVal === 'object' && prevVal !== null) {
+            findChangedKeys(prevVal, currVal, fullKey, changedSet);
+          } else {
+            changedSet.add(key);
+          }
+        } else if (prevVal !== currVal) {
+          changedSet.add(key);
+        }
+      }
+    }
+
+    function copyJson() {
+      const viewer = document.getElementById('json-viewer');
+      navigator.clipboard.writeText(viewer.textContent).then(() => {
+        showAlert('¡JSON copiado al portapapeles con éxito!', 'info');
+        setTimeout(hideAlert, 2500);
+      });
+    }
+
+    function showAlert(msg, type = 'info') {
+      const box = document.getElementById('alert-box');
+      box.className = `alert alert-${type}`;
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function hideAlert() {
+      document.getElementById('alert-box').style.display = 'none';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
+</body>
+</html>

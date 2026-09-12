@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from app.schemas import (
     FieldCreate,
@@ -12,28 +14,40 @@ from app.schemas import (
     PublicFieldResponse,
     PublishResponse,
 )
-from app.store import FieldNotFound, InMemoryFieldStore
+from app.store import FieldNotFound, SQLiteFieldStore
+from app.timelapse.router import router as timelapse_router
 
 app = FastAPI(
     title="TERRIA API",
     summary="Backend for the shareable history of a field.",
-    description="Initial CRUD API for fields and public field passports.",
+    description="Initial CRUD API for fields, public field passports, and timelapse engine.",
     version="0.1.0",
     openapi_version="3.1.0",
     openapi_tags=[
         {"name": "Health", "description": "Service status."},
         {"name": "Fields", "description": "Private field management."},
         {"name": "Public fields", "description": "Shareable field passports."},
+        {"name": "Timelapse", "description": "Field history and temporal observations."},
     ],
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
-store = InMemoryFieldStore()
+store = SQLiteFieldStore()
+app.include_router(timelapse_router)
+
+DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
+
+
+@app.get("/debug/timelapse", response_class=HTMLResponse, tags=["Health"])
+def debug_timelapse_page() -> str:
+    if not DEBUG_TIMELAPSE_HTML_PATH.exists():
+        raise HTTPException(status_code=404, detail="Debug timelapse UI not found")
+    return DEBUG_TIMELAPSE_HTML_PATH.read_text(encoding="utf-8")
 
 
 def not_found(request: Request) -> HTTPException:
