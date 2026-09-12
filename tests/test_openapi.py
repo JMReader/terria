@@ -11,6 +11,9 @@ def test_openapi_has_the_field_crud_contract() -> None:
     assert "/v1/fields/{field_id}/timelapses" in schema["paths"]
     assert "/v1/timelapse-jobs/{job_id}" in schema["paths"]
     assert "/v1/public/fields/{public_slug}/timelapse" in schema["paths"]
+    assert "/v1/fields/{field_id}/certifications" in schema["paths"]
+    assert "/v1/certifications/{certification_id}" in schema["paths"]
+    assert "/v1/public/certifications/{cert_uid}/verify" in schema["paths"]
     assert "/debug/timelapse" in schema["paths"]
 
 

@@ -45,6 +45,21 @@ class Settings(BaseSettings):
     # ── Weather provider ──────────────────────────────────────────────────────
     weather_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
 
+    # ── Certificación en Solana ───────────────────────────────────────────────
+    # "local" usa un validador en memoria (sin red ni SOL); "devnet" usa un RPC real.
+    solana_anchor_provider: str = "local"
+    solana_cluster: str = "devnet"
+    solana_rpc_url: str = "https://api.devnet.solana.com"
+    solana_memo_program_id: str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+    # JSON byte array, base58 o base64. Nunca commitear; sólo variable de entorno.
+    solana_issuer_secret_key: str | None = None
+    cert_schema_version: str = "terria.cert/1"
+    cert_algorithm_version: str = "jcs+sha256/1"
+
+    @property
+    def use_devnet_anchor(self) -> bool:
+        return self.solana_anchor_provider == "devnet"
+
     @property
     def use_supabase(self) -> bool:
         """True cuando DATABASE_URL está configurada (modo Supabase activo)."""

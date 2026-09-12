@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
+from app.blockchain.router import router as blockchain_router
 from app.schemas import (
     FieldCreate,
     FieldResponse,
@@ -28,6 +29,7 @@ app = FastAPI(
         {"name": "Fields", "description": "Private field management."},
         {"name": "Public fields", "description": "Shareable field passports."},
         {"name": "Timelapse", "description": "Field history and temporal observations."},
+        {"name": "Certifications", "description": "Snapshot certifications anchored on Solana."},
     ],
 )
 app.add_middleware(
@@ -39,6 +41,7 @@ app.add_middleware(
 )
 store = SQLiteFieldStore()
 app.include_router(timelapse_router)
+app.include_router(blockchain_router)
 
 DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
 

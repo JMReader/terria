@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Certificación TERRIA</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; color: #fff; font-weight: 600; background: #555; }
+    .verified { background: #0a7d33; }
+    .tampered { background: #b00020; }
+    .pending, .rpc_unavailable { background: #8a6d00; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    td, th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #8883; vertical-align: top; }
+    code { background: #8882; padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>Certificación TERRIA</h1>
+  <p><span id="badge" class="badge">cargando…</span></p>
+  <table>
+    <tr><th>Certificado</th><td><code id="cert-uid"></code></td></tr>
+    <tr><th>Campo</th><td id="field-id"></td></tr>
+    <tr><th>Versión</th><td id="version"></td></tr>
+    <tr><th>Hash certificado</th><td><code id="expected-hash"></code></td></tr>
+    <tr><th>Hash recomputado</th><td><code id="recomputed-hash"></code></td></tr>
+    <tr><th>Memo on-chain</th><td><code id="on-chain-memo"></code></td></tr>
+    <tr><th>Transacción</th><td><a id="explorer" target="_blank" rel="noreferrer"></a></td></tr>
+  </table>
+  <p id="note">La blockchain prueba <b>existencia e integridad</b> del registro, no la veracidad de los datos.</p>
+  <script>
+    const uid = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() || "");
+    const $ = (id) => document.getElementById(id);
+    $("cert-uid").textContent = uid;
+
+    fetch(`/v1/public/certifications/${encodeURIComponent(uid)}/verify`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`verify failed: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const badge = $("badge");
+        badge.textContent = data.status.toUpperCase();
+        badge.classList.add(data.status);
+        $("field-id").textContent = data.field_id;
+        $("version").textContent = data.version;
+        $("expected-hash").textContent = data.expected_hash || "—";
+        $("recomputed-hash").textContent = data.recomputed_hash || "—";
+        $("on-chain-memo").textContent = data.on_chain_memo || "—";
+        if (data.explorer_url) {
+          const link = $("explorer");
+          link.href = data.explorer_url;
+          link.textContent = data.tx_signature;
+        } else {
+          $("explorer").textContent = data.tx_signature || "sin ancla pública (modo local)";
+        }
+      })
+      .catch((err) => {
+        $("badge").textContent = "ERROR";
+        $("note").textContent = String(err);
+      });
+  </script>
+</body>
+</html>
