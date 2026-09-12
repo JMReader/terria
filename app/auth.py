@@ -90,6 +90,10 @@ class _GoTrueAuth:
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
+    def _admin_headers(self) -> dict[str, str]:
+        # GoTrue Admin API exige apikey + Bearer con la service role key.
+        return self._headers(key=self.service_key, token=self.service_key)
+
     @staticmethod
     def _to_owner(user: dict[str, Any]) -> OwnerResponse:
         metadata = user.get("user_metadata") or {}
@@ -120,7 +124,7 @@ class _GoTrueAuth:
             # Admin API: crea el usuario ya confirmado (evita el flujo de e-mail).
             resp = httpx.post(
                 f"{self.base}/admin/users",
-                headers=self._headers(key=self.service_key),
+                headers=self._admin_headers(),
                 json={
                     "email": payload.email,
                     "password": payload.password,

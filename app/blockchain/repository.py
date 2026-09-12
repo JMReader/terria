@@ -611,10 +611,15 @@ class PostgresCertificationRepository:
         return [self._row_to_certification(row) for row in rows]
 
 
-certification_repository = CertificationRepository()
+# Lazy: instanciar CertificationRepository() a nivel módulo hace mkdir del
+# SQLite local — en el FS read-only de Vercel eso tumba el cold start.
+_local_certification_repository: CertificationRepository | None = None
 
 
 def get_certification_repository() -> CertificationRepository | PostgresCertificationRepository:
+    global _local_certification_repository
     if settings.use_supabase:
         return PostgresCertificationRepository()
-    return certification_repository
+    if _local_certification_repository is None:
+        _local_certification_repository = CertificationRepository()
+    return _local_certification_repository
