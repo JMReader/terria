@@ -1,0 +1,31 @@
+[project]
+name = "terria-api"
+version = "0.1.0"
+description = "TERRIA backend API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi[standard]>=0.128,<0.129",
+  "pydantic-settings>=2.11,<3",
+]
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9",
+  "httpx>=0.28,<0.29",
+  "ruff>=0.14,<0.15",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
