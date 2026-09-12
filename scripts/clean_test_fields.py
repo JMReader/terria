@@ -33,28 +33,10 @@ def clean_database() -> None:
     conn.commit()
     conn.close()
 
-    # Cargar los 6 campos agrícolas reales de PRESETS en el store
-    store = get_field_store()
-    existing_names = {f.name for f in store.list()}
-
-    for k, p in PRESETS.items():
-        if p["name"] not in existing_names:
-            coords = _box_from_centroid(p["lat"], p["lon"], p["ha"])
-            f = store.create(
-                FieldCreate(
-                    name=p["name"],
-                    description=p["description"],
-                    boundary=PolygonGeometry(type="Polygon", coordinates=[coords]),
-                    country="AR",
-                    province=p.get("province", "Córdoba"),
-                    locality=p.get("department", ""),
-                )
-            )
-            print(f"  + Registrado lote real preset: {f.name} ({f.area_hectares:.1f} ha)")
-
     print("\n" + "=" * 80)
-    print("CAMPOS REALES EN BASE DE DATOS LOCAL data/terria.db:")
+    print("CAMPOS REALES EN BASE DE DATOS LOCAL data/terria.db (EXACTAMENTE 3):")
     print("=" * 80)
+    store = get_field_store()
     all_fields = store.list()
     for idx, f in enumerate(all_fields, start=1):
         print(f"  [{idx}] {f.name} ({f.area_hectares:.1f} ha) - {f.province or ''} {f.locality or ''}")
