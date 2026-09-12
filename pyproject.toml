@@ -16,6 +16,7 @@ dependencies = [
   "solders>=0.27,<0.29",
   "solana>=0.36,<0.39",
   "rfc8785>=0.1,<0.2",
+  "reportlab>=5.0.1,<6",
 ]
 
 [build-system]
@@ -30,7 +31,6 @@ dev = [
   "pytest>=8.4,<9",
   "httpx>=0.28,<0.29",
   "ruff>=0.14,<0.15",
-  "reportlab>=5.0.1",
 ]
 
 [tool.ruff]
@@ -39,3 +39,6 @@ target-version = "py312"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.vercel]
+entrypoint = "app.main:app"
