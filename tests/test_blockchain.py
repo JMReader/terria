@@ -1,10 +1,22 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timezone
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 from app.blockchain.canonical import CanonicalizationError, content_hash
 from app.blockchain.payload import build_memo, parse_memo
+from app.blockchain.snapshot import build_observations, build_sources
 from app.main import app
+from app.schemas import PolygonGeometry
+from app.timelapse.schemas import (
+    NdviMetrics,
+    TimelapseFrame,
+    TimelapseManifest,
+    TimelapseSource,
+    WeatherDaily,
+)
 
 client = TestClient(app)
 
@@ -115,3 +127,73 @@ def test_invalid_period_is_rejected() -> None:
         json={"period_from": 2026, "period_to": 2018},
     )
     assert response.status_code == 422
+
+
+def _manifest_with_observations() -> TimelapseManifest:
+    return TimelapseManifest(
+        dataset_id=uuid4(),
+        processing_version="test",
+        field_id=uuid4(),
+        geometry_version_id=uuid4(),
+        boundary=PolygonGeometry(
+            type="Polygon", coordinates=[[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.0, 0.0]]]
+        ),
+        area_hectares=1.0,
+        start_date=date(2024, 10, 1),
+        end_date=date(2024, 10, 2),
+        status="ready",
+        generated_at=datetime(2024, 10, 2, tzinfo=timezone.utc),
+        frames=[
+            TimelapseFrame(
+                id=uuid4(),
+                observed_at=datetime(2024, 10, 2, tzinfo=timezone.utc),
+                local_date=date(2024, 10, 2),
+                usable=True,
+                valid_area_fraction=1.0,
+                ndvi=NdviMetrics(mean=0.4109, p10=0.171, p90=0.7404),
+            )
+        ],
+        weather_daily=[
+            WeatherDaily(
+                date=date(2024, 10, 2),
+                precipitation_mm=0.0,
+                precipitation_7d_mm=0.0,
+                temperature_min_c=10.4,
+                temperature_max_c=21.3,
+            )
+        ],
+        sources=[
+            TimelapseSource(
+                id="sentinel-2",
+                provider="Copernicus CDSE",
+                dataset="S2 L2A",
+                retrieved_at=datetime(2024, 10, 2, tzinfo=timezone.utc),
+                documentation_url="https://example.com",
+                attribution="Copernicus",
+            )
+        ],
+    )
+
+
+def test_build_observations_scales_and_merges_weather() -> None:
+    observations = build_observations([_manifest_with_observations()])
+    assert observations == [
+        {
+            "date": "2024-10-02",
+            "satellite_usable": True,
+            "ndvi_mean_x1000": 411,
+            "ndvi_p10_x1000": 171,
+            "ndvi_p90_x1000": 740,
+            "precip_mm_x10": 0,
+            "precip_7d_mm_x10": 0,
+            "temp_min_c_x10": 104,
+            "temp_max_c_x10": 213,
+        }
+    ]
+
+
+def test_build_sources_deduplicates_and_has_no_floats() -> None:
+    sources = build_sources([_manifest_with_observations()])
+    assert len(sources) == 1
+    assert sources[0]["provider"] == "Copernicus CDSE"
+    assert sources[0]["retrieved_at"].startswith("2024-10-02T")

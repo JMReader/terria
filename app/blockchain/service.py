@@ -16,9 +16,10 @@ from app.blockchain.schemas import (
     CertificationResponse,
     CertificationVerifyResponse,
 )
-from app.blockchain.snapshot import build_snapshot
+from app.blockchain.snapshot import build_observations, build_snapshot, build_sources
 from app.config import settings
 from app.schemas import FieldResponse
+from app.timelapse.repository import timelapse_repository
 from app.timelapse.schemas import TimelapseDatasetSummary
 
 
@@ -69,6 +70,12 @@ def issue_certification(
     version = certification_repository.next_version(field.id)
     prev_hash = certification_repository.previous_content_hash(field.id)
 
+    manifests = [
+        manifest
+        for dataset in datasets
+        if (manifest := timelapse_repository.get_dataset(dataset.id)) is not None
+    ]
+
     snapshot = build_snapshot(
         field=field,
         datasets=datasets,
@@ -77,6 +84,8 @@ def issue_certification(
         cert_uid=cert_uid,
         schema_version=settings.cert_schema_version,
         prev_hash=prev_hash,
+        observations=build_observations(manifests),
+        sources=build_sources(manifests),
     )
     payload = canonical_bytes(snapshot)
     content_hash_hex = sha256_hex(payload)
