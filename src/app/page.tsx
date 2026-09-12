@@ -8,6 +8,9 @@ import FieldCardsList from "@/components/FieldCardsList";
 import FieldDetailView from "@/components/FieldDetailView";
 import WebGpuCosmicGrid from "@/components/WebGpuCosmicGrid";
 import TimelapseController from "@/components/timelapse/TimelapseController";
+import Hero from "@/components/landing/Hero";
+import CertificateSection from "@/components/landing/CertificateSection";
+import SiteFooter from "@/components/landing/SiteFooter";
 import { useFieldTimelapse } from "@/hooks/useFieldTimelapse";
 import { DEMO_TIMELAPSE_MANIFEST } from "@/data/timelapseMockData";
 import { Satellite } from "lucide-react";
@@ -24,9 +27,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const Planet3D = dynamic(() => import("@/components/Planet3D"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-white text-gray-600 text-xs font-sans">
+    <div className="flex h-full w-full items-center justify-center bg-nube text-bosque/60 text-xs font-sans">
       <div className="flex flex-col items-center gap-2">
-        <Satellite className="h-6 w-6 animate-spin text-blue-600" />
+        <Satellite className="h-6 w-6 animate-spin text-musgo" />
         <span>Cargando mapa interactivo...</span>
       </div>
     </div>
@@ -36,9 +39,9 @@ const Planet3D = dynamic(() => import("@/components/Planet3D"), {
 const Field3DIsoViewer = dynamic(() => import("@/components/Field3DIsoViewer"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-white text-gray-600 text-xs font-sans">
+    <div className="flex h-full w-full items-center justify-center bg-nube text-bosque/60 text-xs font-sans">
       <div className="flex flex-col items-center gap-2">
-        <Satellite className="h-6 w-6 animate-spin text-blue-600" />
+        <Satellite className="h-6 w-6 animate-spin text-musgo" />
         <span>Cargando maqueta 3D aislada...</span>
       </div>
     </div>
@@ -259,28 +262,46 @@ export default function Home() {
   return (
     <div
       ref={pageContainerRef}
-      className="relative h-screen max-h-screen w-screen overflow-hidden bg-[#f8fafc] text-gray-900 flex flex-col select-none"
+      className="relative min-h-screen w-full bg-nube text-bosque select-none"
     >
-      {/* Subtle WebGPU background canvas */}
-      <WebGpuCosmicGrid />
+      {/* ── LANDING: hero de marca ─────────────────────────────── */}
+      <Hero />
 
-      {/* Header with its own layout space — no overlap */}
-      <div className="relative z-50 shrink-0 px-4 sm:px-6 pt-3 pb-2">
-        <FloatingIslandHeader
-          onSearchChange={(query) => setSearchQuery(query)}
-          selectedField={selectedField}
-          totalFields={backendFields.length}
-          backendStatus={backendStatus}
-        />
-      </div>
+      {/* ── EXPLORADOR: la app territorial existente ───────────── */}
+      <section
+        id="explorador"
+        className="relative flex h-screen max-h-screen flex-col overflow-hidden"
+      >
+        {/* Subtle WebGPU background canvas */}
+        <WebGpuCosmicGrid />
 
-      {/* Main Two-Column Layout: Left Map/Planet + Right Field Cards */}
-      <main className="relative z-10 flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-12 gap-4 px-4 sm:px-6 pb-3 overflow-hidden">
-        {/* LEFT COLUMN (7 / 12 cols): Clean 3D Map / Planet or Isolated 3D Field Viewport */}
-        <div
-          ref={mapViewportRef}
-          className="lg:col-span-7 xl:col-span-8 h-full min-h-0 flex flex-col relative rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden"
-        >
+        {/* Header with its own layout space — no overlap */}
+        <div className="relative z-50 shrink-0 px-4 sm:px-6 pt-3 pb-2">
+          <FloatingIslandHeader
+            onSearchChange={(query) => setSearchQuery(query)}
+            selectedField={selectedField}
+            totalFields={backendFields.length}
+            backendStatus={backendStatus}
+          />
+        </div>
+
+        {/* Section eyebrow */}
+        <div className="relative z-10 flex items-baseline justify-between px-4 pb-2 sm:px-6">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-musgo">
+            Explorador territorial
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-piedra">
+            {backendFields.length} parcelas en cartera
+          </span>
+        </div>
+
+        {/* Main Two-Column Layout: Left Map/Planet + Right Field Cards */}
+        <main className="relative z-10 flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-12 gap-4 px-4 sm:px-6 pb-3 overflow-hidden">
+          {/* LEFT COLUMN (7 / 12 cols): Clean 3D Map / Planet or Isolated 3D Field Viewport */}
+          <div
+            ref={mapViewportRef}
+            className="lg:col-span-7 xl:col-span-8 h-full min-h-0 flex flex-col relative rounded-3xl border border-piedra-soft bg-papel shadow-sm overflow-hidden"
+          >
           <div className="relative flex-1 w-full h-full min-h-0">
             {isFieldIsolated3D ? (
               <Field3DIsoViewer
@@ -347,7 +368,13 @@ export default function Home() {
             />
           )}
         </div>
-      </main>
+        </main>
+      </section>
+
+      {/* ── CERTIFICADO + SISTEMA DE VERSIONES ─────────────────── */}
+      <CertificateSection field={selectedField} />
+
+      <SiteFooter />
     </div>
   );
 }

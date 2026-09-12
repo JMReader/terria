@@ -38,18 +38,18 @@ export default function NdviMetricCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4.5 shadow-xs transition-colors duration-200 hover:border-emerald-600 cursor-default select-none ${className}`}
+      className={`group relative flex flex-col justify-between rounded-2xl border border-piedra-soft bg-papel p-4.5 shadow-xs transition-colors duration-200 hover:border-musgo cursor-default select-none ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
-        <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase">
+      <div className="flex items-center justify-between border-b border-piedra-soft pb-2.5">
+        <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase">
           Vigor Vegetativo (NDVI)
         </span>
         <span
           className={`rounded-full px-2 py-0.5 text-[9px] font-mono font-bold tracking-wider uppercase ${
             isFresh && satellite
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-gray-100 text-gray-500 border border-gray-200"
+              ? "bg-musgo/10 text-musgo border border-musgo/30"
+              : "bg-nube text-piedra border border-piedra-soft"
           }`}
         >
           {isFresh && satellite ? "Sentinel-2 L2A" : "Sin Cobertura"}
@@ -61,35 +61,35 @@ export default function NdviMetricCard({
         {isFresh && satellite && meanVal !== null && meanVal !== undefined ? (
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black tracking-tight text-emerald-800">
+              <span className="text-3xl font-black tracking-tight text-musgo">
                 {meanVal.toFixed(2)}
               </span>
-              <span className="text-xs font-mono font-semibold text-gray-400">
+              <span className="text-xs font-mono font-semibold text-piedra">
                 / 1.00
               </span>
             </div>
 
             {/* Gauge bar */}
-            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-piedra-soft">
               <div
-                className="h-full rounded-full bg-emerald-600 transition-all duration-300"
+                className="h-full rounded-full bg-musgo transition-all duration-300"
                 style={{ width: `${Math.min(Math.max(meanVal * 100, 0), 100)}%` }}
               />
             </div>
 
-            <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-gray-500">
+            <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-piedra">
               <span>Rango P10-P90:</span>
-              <span className="font-bold text-gray-700">
+              <span className="font-bold text-bosque/80">
                 {p10Val?.toFixed(2) ?? "—"} – {p90Val?.toFixed(2) ?? "—"}
               </span>
             </div>
           </div>
         ) : (
           <div className="py-2 space-y-1 text-center">
-            <span className="text-xs font-mono font-bold text-gray-500 block uppercase tracking-wider">
+            <span className="text-xs font-mono font-bold text-bosque/60 block uppercase tracking-wider">
               Sin imagen reciente
             </span>
-            <span className="text-[10px] font-mono text-gray-400 block">
+            <span className="text-[10px] font-mono text-piedra block">
               {ageDays !== null && ageDays > 10
                 ? `>10 días sin pasada útil (${ageDays}d)`
                 : "Nubosidad o fuera de rango"}
@@ -99,7 +99,7 @@ export default function NdviMetricCard({
       </div>
 
       {/* Footer Info */}
-      <div className="border-t border-gray-100 pt-2 flex items-center justify-between text-[10px] font-mono text-gray-400">
+      <div className="border-t border-piedra-soft pt-2 flex items-center justify-between text-[10px] font-mono text-piedra">
         <span>
           {satellite && isFresh
             ? `Captura: hace ${ageDays ?? 0}d`

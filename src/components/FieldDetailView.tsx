@@ -11,6 +11,7 @@ import NdviMetricCard from "@/components/timelapse/NdviMetricCard";
 import WeatherDailyCard from "@/components/timelapse/WeatherDailyCard";
 import NdviSparklineChart from "@/components/timelapse/NdviSparklineChart";
 import SolanaAuditCard from "@/components/certification/SolanaAuditCard";
+import ValuationPanel from "@/components/valuation/ValuationPanel";
 
 gsap.registerPlugin(useGSAP);
 
@@ -30,7 +31,7 @@ export default function FieldDetailView({
   isIsolated3D = false,
   sharedTimelapse,
 }: FieldDetailViewProps) {
-  const [activeTab, setActiveTab] = useState<"summary" | "timelapse" | "audit">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "timelapse" | "future" | "audit">("summary");
   const containerRef = useRef<HTMLDivElement>(null);
   const tabContentRef = useRef<HTMLDivElement>(null);
 
@@ -83,14 +84,14 @@ export default function FieldDetailView({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col h-full rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden select-none"
+      className="flex flex-col h-full rounded-3xl border border-piedra-soft bg-papel shadow-sm overflow-hidden select-none"
     >
       {/* Top Header: No icons, pure typography and minimalist badges */}
-      <div className="p-4 sm:p-5 border-b border-gray-100 bg-white shrink-0 space-y-3">
+      <div className="p-4 sm:p-5 border-b border-piedra-soft bg-papel shrink-0 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={handleBackClick}
-            className="rounded-xl border border-gray-200 bg-white hover:border-gray-900 px-3 py-1.5 text-xs font-mono font-bold text-gray-700 transition-colors cursor-pointer"
+            className="rounded-xl border border-piedra-soft bg-papel hover:border-bosque px-3 py-1.5 text-xs font-mono font-bold text-bosque/80 transition-colors cursor-pointer"
           >
             ‹ Catálogo
           </button>
@@ -101,41 +102,41 @@ export default function FieldDetailView({
                 onClick={onToggleIsolate3D}
                 className={`rounded-xl px-3 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer border ${
                   isIsolated3D
-                    ? "bg-gray-900 text-white border-gray-900"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-gray-900"
+                    ? "bg-bosque text-nube border-bosque"
+                    : "bg-papel text-bosque/80 border-piedra-soft hover:border-bosque"
                 }`}
               >
                 {isIsolated3D ? "Ver Mapa" : "Maqueta 3D"}
               </button>
             )}
 
-            <span className="rounded-lg bg-gray-100 border border-gray-200 px-2 py-1 text-[10px] font-mono font-bold text-gray-600">
+            <span className="rounded-lg bg-nube border border-piedra-soft px-2 py-1 text-[10px] font-mono font-bold text-bosque/60">
               {field.code || "CAMPO"}
             </span>
 
-            <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-[10px] font-mono font-bold text-emerald-800 uppercase">
+            <span className="rounded-lg bg-tierra/15 border border-tierra/50 px-2 py-1 text-[10px] font-mono font-bold text-tierra-deep uppercase">
               Verificado
             </span>
           </div>
         </div>
 
         <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight">
+          <h1 className="font-display text-2xl font-medium text-bosque tracking-tight">
             {field.name}
           </h1>
-          <p className="text-xs font-mono text-gray-400 mt-0.5">
+          <p className="text-xs font-mono text-piedra mt-0.5">
             {field.locality || "Argentina"}{field.province ? `, ${field.province}` : ""} {field.coordinates ? `• ${field.coordinates}` : ""}
           </p>
         </div>
 
         {/* Minimalist Segmented Tab Switcher */}
-        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 p-1 border border-gray-200 text-[11px] font-mono font-bold">
+        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-nube p-1 border border-piedra-soft text-[11px] font-mono font-bold">
           <button
             onClick={() => setActiveTab("summary")}
             className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
               activeTab === "summary"
-                ? "bg-white text-gray-900 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-bosque shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             Resumen
@@ -144,18 +145,28 @@ export default function FieldDetailView({
             onClick={() => setActiveTab("timelapse")}
             className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
               activeTab === "timelapse"
-                ? "bg-white text-emerald-800 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-musgo shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             Timelapse
           </button>
           <button
+            onClick={() => setActiveTab("future")}
+            className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
+              activeTab === "future"
+                ? "bg-papel text-tierra-deep shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
+            }`}
+          >
+            Futuro
+          </button>
+          <button
             onClick={() => setActiveTab("audit")}
             className={`rounded-xl py-1.5 transition-all cursor-pointer uppercase ${
               activeTab === "audit"
-                ? "bg-white text-blue-800 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-bosque shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             Solana
@@ -202,23 +213,23 @@ export default function FieldDetailView({
               </div>
 
               {/* Suelo y Régimen Hídrico */}
-              <div className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs transition-colors duration-200 hover:border-gray-900">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase">
+              <div className="group rounded-2xl border border-piedra-soft bg-papel p-4 shadow-xs transition-colors duration-200 hover:border-bosque">
+                <div className="flex items-center justify-between border-b border-piedra-soft pb-2">
+                  <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase">
                     Suelo & Napa (INTA)
                   </span>
-                  <span className="text-[10px] font-mono text-gray-500">
+                  <span className="text-[10px] font-mono text-bosque/60">
                     {field.soilSeries || field.soilType || "Suelo agrícola"}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 text-xs font-mono">
-                  <div className="rounded-xl bg-gray-50 p-2.5 border border-gray-100">
-                    <span className="text-[9px] text-gray-400 uppercase block">Napa Freática</span>
-                    <span className="font-bold text-gray-800">{field.waterTable || "Cota normal"}</span>
+                  <div className="rounded-xl bg-nube p-2.5 border border-piedra-soft">
+                    <span className="text-[9px] text-piedra uppercase block">Napa Freática</span>
+                    <span className="font-bold text-bosque">{field.waterTable || "Cota normal"}</span>
                   </div>
-                  <div className="rounded-xl bg-gray-50 p-2.5 border border-gray-100">
-                    <span className="text-[9px] text-gray-400 uppercase block">Régimen Hídrico</span>
-                    <span className="font-bold text-gray-800">
+                  <div className="rounded-xl bg-nube p-2.5 border border-piedra-soft">
+                    <span className="text-[9px] text-piedra uppercase block">Régimen Hídrico</span>
+                    <span className="font-bold text-bosque">
                       {field.irrigation ? "Riego Pivote" : "Secano"}
                     </span>
                   </div>
@@ -226,22 +237,22 @@ export default function FieldDetailView({
               </div>
 
               {/* Campañas Históricas */}
-              <div className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs transition-colors duration-200 hover:border-gray-900">
-                <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase block mb-3">
+              <div className="group rounded-2xl border border-piedra-soft bg-papel p-4 shadow-xs transition-colors duration-200 hover:border-bosque">
+                <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase block mb-3">
                   Historial de Campañas
                 </span>
                 <div className="space-y-2 text-xs font-mono">
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-700">2024/25 • Maíz Tardío</span>
-                    <span className="font-bold text-emerald-700">98 qq/ha</span>
+                  <div className="flex items-center justify-between border-b border-piedra-soft pb-2">
+                    <span className="text-bosque/80">2024/25 • Maíz Tardío</span>
+                    <span className="font-bold text-musgo">98 qq/ha</span>
                   </div>
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-700">2023/24 • Soja 1ra</span>
-                    <span className="font-bold text-blue-700">41 qq/ha</span>
+                  <div className="flex items-center justify-between border-b border-piedra-soft pb-2">
+                    <span className="text-bosque/80">2023/24 • Soja 1ra</span>
+                    <span className="font-bold text-cielo-deep">41 qq/ha</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-700">2022/23 • Trigo / Soja</span>
-                    <span className="font-bold text-amber-700">44 qq/ha</span>
+                    <span className="text-bosque/80">2022/23 • Trigo / Soja</span>
+                    <span className="font-bold text-tierra-deep">44 qq/ha</span>
                   </div>
                 </div>
               </div>
@@ -272,24 +283,24 @@ export default function FieldDetailView({
               />
 
               {/* Mini stepper for inline date exploration */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-3 flex items-center justify-between text-xs font-mono transition-colors hover:border-gray-900">
+              <div className="rounded-2xl border border-piedra-soft bg-papel p-3 flex items-center justify-between text-xs font-mono transition-colors hover:border-bosque">
                 <button
                   onClick={timelapse.stepPrev}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-gray-700 hover:border-gray-900 transition-colors cursor-pointer"
+                  className="rounded-lg border border-piedra-soft px-2.5 py-1 text-bosque/80 hover:border-bosque transition-colors cursor-pointer"
                 >
                   ‹ Día
                 </button>
                 <div className="text-center">
-                  <span className="font-bold text-gray-900 block">
+                  <span className="font-bold text-bosque block">
                     {timelapse.selectedDate}
                   </span>
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-piedra">
                     Paso {timelapse.dateIndex + 1} de {timelapse.dates.length}
                   </span>
                 </div>
                 <button
                   onClick={timelapse.stepNext}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-gray-700 hover:border-gray-900 transition-colors cursor-pointer"
+                  className="rounded-lg border border-piedra-soft px-2.5 py-1 text-bosque/80 hover:border-bosque transition-colors cursor-pointer"
                 >
                   Día ›
                 </button>
@@ -297,21 +308,24 @@ export default function FieldDetailView({
             </>
           )}
 
-          {/* TAB 3: AUDITORÍA SOLANA */}
+          {/* TAB 3: FUTURO — proyección de valor de tierra */}
+          {activeTab === "future" && <ValuationPanel field={field} />}
+
+          {/* TAB 4: AUDITORÍA SOLANA */}
           {activeTab === "audit" && (
             <>
               <SolanaAuditCard certification={DEMO_SOLANA_CERTIFICATION} />
 
-              <div className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-xs transition-colors duration-200 hover:border-emerald-600">
-                <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase block mb-2">
+              <div className="group rounded-2xl border border-piedra-soft bg-papel p-4 shadow-xs transition-colors duration-200 hover:border-tierra">
+                <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase block mb-2">
                   Regla de Integridad Criptográfica
                 </span>
-                <p className="text-xs font-mono text-gray-600 leading-relaxed">
+                <p className="text-xs font-mono text-bosque/70 leading-relaxed">
                   El snapshot canónico mensual (2018-2026) queda sellado bajo SHA-256 e inyectado en el Memo Program de Solana Devnet. La firma demuestra existencia inmutable de la serie agronómica.
                 </p>
-                <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-gray-400 border-t border-gray-100 pt-2">
+                <div className="mt-3 flex items-center justify-between text-[10px] font-mono text-piedra border-t border-piedra-soft pt-2">
                   <span>RFC 8785 (JCS)</span>
-                  <span className="text-emerald-700 font-bold">Estado: Confirmado</span>
+                  <span className="text-musgo font-bold">Estado: Confirmado</span>
                 </div>
               </div>
             </>
@@ -320,21 +334,21 @@ export default function FieldDetailView({
       </div>
 
       {/* Sticky Bottom Actions: Zero icons, clean typography */}
-      <div className="p-4 border-t border-gray-100 bg-white shrink-0 flex items-center gap-2">
-        <button className="flex-1 rounded-2xl bg-gray-900 hover:bg-black active:scale-[0.98] text-white px-4 py-3 text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer shadow-xs">
+      <div className="p-4 border-t border-piedra-soft bg-papel shrink-0 flex items-center gap-2">
+        <button className="flex-1 rounded-2xl bg-bosque hover:bg-bosque-deep active:scale-[0.98] text-nube px-4 py-3 text-xs font-mono font-bold tracking-wider uppercase transition-all cursor-pointer shadow-xs">
           Solicitar Arrendamiento
         </button>
 
         <button
           title="Descargar Ficha en PDF"
-          className="rounded-2xl border border-gray-200 bg-white hover:border-gray-900 text-gray-700 px-3.5 py-3 text-xs font-mono font-bold uppercase transition-colors cursor-pointer shrink-0"
+          className="rounded-2xl border border-piedra-soft bg-papel hover:border-bosque text-bosque/80 px-3.5 py-3 text-xs font-mono font-bold uppercase transition-colors cursor-pointer shrink-0"
         >
           PDF
         </button>
 
         <button
           title="Compartir Lote"
-          className="rounded-2xl border border-gray-200 bg-white hover:border-gray-900 text-gray-700 px-3.5 py-3 text-xs font-mono font-bold uppercase transition-colors cursor-pointer shrink-0"
+          className="rounded-2xl border border-piedra-soft bg-papel hover:border-bosque text-bosque/80 px-3.5 py-3 text-xs font-mono font-bold uppercase transition-colors cursor-pointer shrink-0"
         >
           Link
         </button>

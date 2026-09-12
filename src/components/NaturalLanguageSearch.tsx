@@ -67,14 +67,14 @@ export default function NaturalLanguageSearch({
       {/* Rectángulo largo y bajo con bordes super redondeados estilo Google */}
       <div
         ref={containerRef}
-        className={`relative flex items-center h-12 w-full rounded-full bg-white transition-all duration-200 ${
+        className={`relative flex items-center h-12 w-full rounded-full bg-papel transition-all duration-200 ${
           isFocused
-            ? "shadow-[0_2px_10px_rgba(32,33,36,0.22)] border border-transparent ring-1 ring-gray-300"
-            : "border border-gray-200 shadow-[0_1px_6px_rgba(32,33,36,0.1)] hover:shadow-[0_2px_8px_rgba(32,33,36,0.16)] hover:border-gray-300"
+            ? "shadow-[0_2px_10px_rgba(28,58,46,0.22)] border border-transparent ring-1 ring-musgo"
+            : "border border-piedra-soft shadow-[0_1px_6px_rgba(28,58,46,0.1)] hover:shadow-[0_2px_8px_rgba(28,58,46,0.16)] hover:border-piedra"
         } px-4 gap-3`}
       >
         {/* Google Style Search Magnifier Icon */}
-        <Search className="h-4 w-4 text-gray-400 shrink-0 stroke-[2.2]" />
+        <Search className="h-4 w-4 text-piedra shrink-0 stroke-[2.2]" />
 
         {/* Input Text */}
         <input
@@ -87,7 +87,7 @@ export default function NaturalLanguageSearch({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="Busca en lenguaje natural, ej: 'Campos de más de 300 ha en Córdoba para maíz con napa óptima'..."
-          className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none font-sans"
+          className="flex-1 bg-transparent text-sm text-bosque placeholder:text-piedra focus:outline-none font-sans"
         />
 
         {/* Clear Button */}
@@ -95,7 +95,7 @@ export default function NaturalLanguageSearch({
           <button
             onClick={handleClear}
             type="button"
-            className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-full text-piedra hover:text-bosque hover:bg-piedra-soft transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -108,8 +108,8 @@ export default function NaturalLanguageSearch({
           title={isListening ? "Detener voz" : "Búsqueda por voz"}
           className={`p-1.5 rounded-full transition-colors ${
             isListening
-              ? "bg-red-50 text-red-500 animate-pulse"
-              : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+              ? "bg-tierra/20 text-tierra-deep animate-pulse"
+              : "text-piedra hover:text-bosque hover:bg-piedra-soft"
           }`}
         >
           <Mic className="h-4 w-4" />
@@ -118,7 +118,7 @@ export default function NaturalLanguageSearch({
         {/* Search Button (Minimalist pill) */}
         <button
           type="button"
-          className="flex items-center gap-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 shadow-xs transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 rounded-full bg-bosque hover:bg-bosque-deep text-nube text-xs font-semibold px-4 py-1.5 shadow-xs transition-colors cursor-pointer"
         >
           <span>Buscar</span>
         </button>
@@ -127,13 +127,13 @@ export default function NaturalLanguageSearch({
       {/* Detected Entities Tags */}
       {detectedTags.length > 0 && (
         <div className="flex items-center gap-1.5 px-3 overflow-x-auto text-xs no-scrollbar">
-          <span className="text-gray-400 text-[11px] font-medium shrink-0">
+          <span className="text-piedra text-[11px] font-medium shrink-0">
             Filtros reconocidos:
           </span>
           {detectedTags.map((tag, idx) => (
             <span
               key={idx}
-              className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200/70 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 shrink-0"
+              className="inline-flex items-center rounded-full bg-musgo/10 border border-musgo/30 px-2.5 py-0.5 text-[11px] font-medium text-musgo shrink-0"
             >
               {tag}
             </span>

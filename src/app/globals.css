@@ -1,8 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f4f6f2;
+  --foreground: #1c3a2e;
+}
+
+@theme {
+  /* ── Paleta de marca TERRIA (brand board) ────────────────────── */
+  --color-bosque: #1c3a2e; /* tinta principal, hero, footer */
+  --color-bosque-deep: #12271e; /* profundidad de hero */
+  --color-musgo: #4a6b46; /* acento primario / verified */
+  --color-oliva: #8a9a6b; /* acento secundario, capas */
+  --color-piedra: #a7a7a0; /* muted, hairlines, metadata */
+  --color-piedra-soft: #dcdcd2; /* bordes suaves sobre nube */
+  --color-cielo: #7ba7d9; /* capa satélite / IA — reservado */
+  --color-cielo-deep: #4e7faf; /* cielo para texto */
+  --color-nube: #f4f6f2; /* superficie base */
+  --color-papel: #fafaf6; /* tarjetas / certificado sobre nube */
+  --color-tierra: #c9b28a; /* sellos, acento premium */
+  --color-tierra-deep: #8f7550; /* tierra para texto/barras */
+
+  /* ── Alias semánticos ────────────────────────────────────────── */
+  --color-ink: var(--color-bosque);
+  --color-surface: var(--color-nube);
+  --color-accent: var(--color-musgo);
+  --color-data: var(--color-cielo);
+  --color-seal: var(--color-tierra);
+  --color-muted: var(--color-piedra);
+
+  /* NDVI de marca: suelo desnudo → vegetación profunda */
+  --color-ndvi-1: #c9b28a;
+  --color-ndvi-2: #a9b183;
+  --color-ndvi-3: #8a9a6b;
+  --color-ndvi-4: #637e52;
+  --color-ndvi-5: #4a6b46;
+  --color-ndvi-6: #1c3a2e;
 }
 
 @theme inline {
@@ -10,17 +42,25 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
 body {
-  height: 100%;
-  max-height: 100vh;
-  overflow: hidden;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(201, 178, 138, 0.45); /* tierra */
+  color: #12271e;
 }
 
 /* Clean Minimalist Light Scrollbar */
@@ -30,17 +70,17 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #ecede6;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #b9bab0;
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a7a7a0;
 }
 
 .no-scrollbar::-webkit-scrollbar {

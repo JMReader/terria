@@ -37,7 +37,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 88,
       expectedYield: "114 qq/ha",
       soilHorizon: "Hapludol Típico Serie Córdoba",
-      color: "#eab308", // Maize Golden Yellow (OneSoil)
+      color: "#c9b28a", // Maíz — Tierra Terria
       offsets: [
         [0.0075, -0.0075],
         [0.0075, 0.0015],
@@ -57,7 +57,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 82,
       expectedYield: "46 qq/ha",
       soilHorizon: "Horizonte Árgico profundo a 45cm",
-      color: "#dc2626", // Soy / Wheat Crimson Red (OneSoil)
+      color: "#637e52", // Soja / Trigo — Verde profundo Terria
       offsets: [
         [-0.0005, -0.0075],
         [-0.0005, 0.0015],
@@ -80,7 +80,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 79,
       expectedYield: "54 qq/ha",
       soilHorizon: "Franco limoso de alta fertilidad",
-      color: "#ca8a04", // Amber Gold (OneSoil)
+      color: "#a9b183", // Oliva claro Terria
       offsets: [
         [0.0075, 0.0023],
         [0.0075, 0.0086],
@@ -101,7 +101,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 95,
       expectedYield: "Reserva Forrajera",
       soilHorizon: "Capa freática aflorante a 0.8m",
-      color: "#16a34a", // Forest Green (OneSoil)
+      color: "#4a6b46", // Pastura — Musgo Terria
       offsets: [
         [0.0075, 0.0094],
         [0.0058, 0.0142], // Organic contour line along natural creek
@@ -126,7 +126,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 89,
       expectedYield: "128 qq/ha",
       soilHorizon: "Argiudol Típico Clase I Serie Pergamino",
-      color: "#eab308", // Maize Golden Yellow
+      color: "#c9b28a", // Maíz — Tierra Terria
       offsets: [
         [0.0130, -0.0150],
         [0.0130, -0.0035],
@@ -146,7 +146,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 91,
       expectedYield: "49 qq/ha",
       soilHorizon: "Suelo Clase I sin limitantes",
-      color: "#dc2626", // Crimson Red
+      color: "#637e52", // Verde profundo Terria
       offsets: [
         [-0.0010, -0.0150],
         [-0.0010, -0.0018],
@@ -169,7 +169,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 85,
       expectedYield: "56 qq/ha",
       soilHorizon: "Capacidad de almacenaje 310mm",
-      color: "#ca8a04", // Amber Gold
+      color: "#a9b183", // Oliva claro Terria
       offsets: [
         [0.0125, -0.0006],
         [0.0125, 0.0125],
@@ -194,7 +194,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 82,
       expectedYield: "104 qq/ha",
       soilHorizon: "Clase IIe Serie Venado Tuerto",
-      color: "#eab308", // Yellow
+      color: "#c9b28a", // Tierra Terria
       offsets: [
         [0.0115, -0.0110],
         [0.0115, 0.0075],
@@ -214,7 +214,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 78,
       expectedYield: "38 qq/ha",
       soilHorizon: "Siembra directa sobre rastrojo trigo",
-      color: "#dc2626", // Red
+      color: "#637e52", // Verde profundo Terria
       offsets: [
         [-0.0008, -0.0110],
         [-0.0008, 0.0105],
@@ -237,7 +237,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 80,
       expectedYield: "48 qq/ha",
       soilHorizon: "Suelo bien drenado con rastrojo",
-      color: "#ca8a04", // Amber Gold
+      color: "#a9b183", // Oliva claro Terria
       offsets: [
         [0.0095, 0.0115],
         [0.0065, 0.0185],
@@ -261,7 +261,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 96,
       expectedYield: "62 qq/ha",
       soilHorizon: "Riego suplementario Valley 180mm",
-      color: "#0284c7", // Sapphire Blue
+      color: "#4e7faf", // Riego — Cielo profundo Terria
       // 16-point circular pivot geometry
       offsets: [
         [0.0125, -0.0070],
@@ -293,7 +293,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 94,
       expectedYield: "132 qq/ha",
       soilHorizon: "Lamina uniforme alta presión",
-      color: "#0ea5e9", // Cyan
+      color: "#7ba7d9", // Riego — Cielo Terria
       // 16-point circular pivot geometry
       offsets: [
         [0.0125, 0.0065],
@@ -325,7 +325,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 81,
       expectedYield: "41 qq/ha",
       soilHorizon: "Secano alta productividad",
-      color: "#dc2626", // Crimson Red
+      color: "#637e52", // Verde profundo Terria
       offsets: [
         [-0.0010, -0.0135],
         [-0.0010, 0.0130],
@@ -345,7 +345,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 92,
       expectedYield: "Pastoreo Directo",
       soilHorizon: "Bajo tendido con napa superficial",
-      color: "#16a34a", // Forest Green
+      color: "#4a6b46", // Musgo Terria
       offsets: [
         [-0.0135, -0.0135],
         [-0.0135, 0.0130],
@@ -370,7 +370,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 90,
       expectedYield: "44 ton/ha",
       soilHorizon: "Suelo volcánico con tosca a 1.2m",
-      color: "#ca8a04", // Amber Gold
+      color: "#a9b183", // Oliva claro Terria
       offsets: [
         [0.0125, -0.0120],
         [0.0135, -0.0015],
@@ -391,7 +391,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 86,
       expectedYield: "58 qq/ha",
       soilHorizon: "Franco arenoso profundo",
-      color: "#dc2626", // Crimson Red
+      color: "#637e52", // Verde profundo Terria
       offsets: [
         [-0.0008, -0.0120],
         [-0.0008, 0.0010],
@@ -413,7 +413,7 @@ export const FIELD_SECTORS_DATA: Record<string, ParcelSector[]> = {
       moisturePercent: 84,
       expectedYield: "32 qq/ha",
       soilHorizon: "Pendiente 2% con curvas de nivel",
-      color: "#eab308", // Golden Yellow
+      color: "#c9b28a", // Tierra Terria
       offsets: [
         [0.0125, 0.0080],
         [0.0145, 0.0185],
@@ -436,7 +436,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Parcela Rural Noroeste (Maíz)",
     hectares: 75,
     crop: "Maíz",
-    color: "#eab308", // Golden Yellow
+    color: "#c9b28a", // Tierra Terria
     offsets: [
       [0.0085, -0.0075],
       [0.0165, -0.0075],
@@ -451,7 +451,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Parcela Rural Noreste (Trigo)",
     hectares: 92,
     crop: "Trigo",
-    color: "#dc2626", // Crimson Red
+    color: "#637e52", // Verde profundo Terria
     offsets: [
       [0.0085, 0.0023],
       [0.0165, 0.0023],
@@ -466,7 +466,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Sur (Barbecho)",
     hectares: 88,
     crop: "Barbecho",
-    color: "#475569", // Slate Gray
+    color: "#a7a7a0", // Piedra Terria (lindero)
     offsets: [
       [-0.0098, -0.0075],
       [-0.0175, -0.0075],
@@ -481,7 +481,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Sudeste (Soja)",
     hectares: 64,
     crop: "Soja",
-    color: "#ca8a04", // Amber Gold
+    color: "#a9b183", // Oliva claro Terria
     offsets: [
       [-0.0098, 0.0023],
       [-0.0175, 0.0023],
@@ -496,7 +496,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Buffer Pista Aeródromo (Pastura)",
     hectares: 55,
     crop: "Pastura Natural",
-    color: "#16a34a", // Forest Green
+    color: "#4a6b46", // Musgo Terria
     offsets: [
       [0.0012, -0.0085],
       [0.0135, -0.0085],
@@ -510,7 +510,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Cabecera Pista (Rastrojo)",
     hectares: 42,
     crop: "Rastrojo",
-    color: "#475569", // Gray
+    color: "#a7a7a0", // Piedra Terria
     offsets: [
       [-0.0092, -0.0085],
       [0.0005, -0.0085],
@@ -524,7 +524,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Este (Trigo)",
     hectares: 110,
     crop: "Trigo",
-    color: "#dc2626", // Crimson Red
+    color: "#637e52", // Verde profundo Terria
     offsets: [
       [0.0075, 0.0150],
       [0.0165, 0.0150],
@@ -539,7 +539,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Este 2 (Maíz)",
     hectares: 85,
     crop: "Maíz",
-    color: "#eab308", // Golden Yellow
+    color: "#c9b28a", // Tierra Terria
     offsets: [
       [-0.0095, 0.0145],
       [0.0068, 0.0145],
@@ -556,7 +556,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Establecimiento Vecino Norte (Maíz)",
     hectares: 210,
     crop: "Maíz",
-    color: "#eab308",
+    color: "#c9b28a",
     offsets: [
       [0.0140, -0.0150],
       [0.0245, -0.0150],
@@ -571,7 +571,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Establecimiento Vecino Sur (Trigo)",
     hectares: 190,
     crop: "Trigo",
-    color: "#dc2626",
+    color: "#637e52",
     offsets: [
       [-0.0235, -0.0150],
       [-0.0135, -0.0150],
@@ -586,7 +586,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Campo Vecino Este (Barbecho)",
     hectares: 180,
     crop: "Barbecho",
-    color: "#475569",
+    color: "#a7a7a0",
     offsets: [
       [-0.0125, 0.0135],
       [0.0130, 0.0135],
@@ -603,7 +603,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Lindera Norte (Soja)",
     hectares: 160,
     crop: "Soja",
-    color: "#dc2626",
+    color: "#637e52",
     offsets: [
       [0.0125, -0.0110],
       [0.0225, -0.0110],
@@ -618,7 +618,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Lindera Sur (Maíz)",
     hectares: 140,
     crop: "Maíz",
-    color: "#eab308",
+    color: "#c9b28a",
     offsets: [
       [-0.0185, -0.0110],
       [-0.0098, -0.0110],
@@ -633,7 +633,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Chacra Lindera Oeste (Pastura)",
     hectares: 130,
     crop: "Pastura Natural",
-    color: "#16a34a",
+    color: "#4a6b46",
     offsets: [
       [-0.0088, -0.0220],
       [0.0115, -0.0220],
@@ -650,7 +650,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Finca Lindera Norte (Trigo)",
     hectares: 220,
     crop: "Trigo",
-    color: "#dc2626",
+    color: "#637e52",
     offsets: [
       [0.0135, -0.0135],
       [0.0240, -0.0135],
@@ -665,7 +665,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Finca Lindera Este (Maíz)",
     hectares: 180,
     crop: "Maíz",
-    color: "#eab308",
+    color: "#c9b28a",
     offsets: [
       [-0.0120, 0.0140],
       [0.0125, 0.0140],
@@ -682,7 +682,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Lote Serrano Norte (Papa)",
     hectares: 170,
     crop: "Papa",
-    color: "#ca8a04",
+    color: "#a9b183",
     offsets: [
       [0.0135, -0.0130],
       [0.0235, -0.0130],
@@ -697,7 +697,7 @@ export const NEIGHBOR_CADASTRE_PARCELS: CadastreNeighborParcel[] = [
     name: "Lote Serrano Sur (Cebada)",
     hectares: 150,
     crop: "Cebada",
-    color: "#dc2626",
+    color: "#637e52",
     offsets: [
       [-0.0195, -0.0130],
       [-0.0125, -0.0130],

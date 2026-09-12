@@ -8,23 +8,23 @@ import { TimelineState, TimelapseManifest } from "@/types/terria";
  * Matches Sentinel-2 / Landsat-8 precision agronomy standards (OneSoil / Climate FieldView)
  */
 export function getNdviRampColor(ndvi: number): string {
-  if (ndvi < 0.18) return "#b45309"; // Ocre / suelo desnudo / rastrojo seco
-  if (ndvi < 0.30) return "#eab308"; // Amarillo dorado / emergencia temprana
-  if (ndvi < 0.45) return "#84cc16"; // Verde lima / macollaje e inicio vegetativo
-  if (ndvi < 0.60) return "#22c55e"; // Verde esmeralda / expansión foliar
-  if (ndvi < 0.72) return "#16a34a"; // Verde intenso / canopia cerrada
-  if (ndvi < 0.85) return "#15803d"; // Verde bosque vivo / floración y pico de biomasa
-  return "#14532d"; // Verde profundo / máximo vigor fotosintético
+  if (ndvi < 0.18) return "#c9b28a"; // Tierra / suelo desnudo / rastrojo seco
+  if (ndvi < 0.30) return "#a9b183"; // Oliva claro / emergencia temprana
+  if (ndvi < 0.45) return "#8a9a6b"; // Oliva / macollaje e inicio vegetativo
+  if (ndvi < 0.60) return "#637e52"; // Verde transición / expansión foliar
+  if (ndvi < 0.72) return "#4a6b46"; // Musgo / canopia cerrada
+  if (ndvi < 0.85) return "#1c3a2e"; // Bosque / floración y pico de biomasa
+  return "#12271e"; // Bosque profundo / máximo vigor fotosintético
 }
 
 /**
  * ERA5 Reanalysis Daily Temperature Color Ramp
  */
 export function getTempRampColor(tempC: number): string {
-  if (tempC < 18) return "#38bdf8"; // Fresco (<18C)
-  if (tempC < 24) return "#34d399"; // Óptimo agronómico (18-24C)
-  if (tempC < 30) return "#fbbf24"; // Templado cálido (24-30C)
-  return "#f97316"; // Estrés térmico (>30C)
+  if (tempC < 18) return "#7ba7d9"; // Fresco (<18C) — cielo
+  if (tempC < 24) return "#4a6b46"; // Óptimo agronómico (18-24C) — musgo
+  if (tempC < 30) return "#c9b28a"; // Templado cálido (24-30C) — tierra
+  return "#8f7550"; // Estrés térmico (>30C) — tierra profunda
 }
 
 /**
@@ -333,8 +333,8 @@ export function generateParcelsGeoJson(
           isPortfolio: true,
           isPerimeter: true,
           kind: "perimeter",
-          baseColor: "#0f172a",
-          color: "#0f172a",
+          baseColor: "#1c3a2e",
+          color: "#1c3a2e",
           currentNdvi: parseFloat((field.ndvi ?? 0.72).toFixed(2)),
           currentTemp: activeTemp,
           currentRain: activeRain,

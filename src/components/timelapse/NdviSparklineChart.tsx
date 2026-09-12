@@ -89,13 +89,13 @@ export default function NdviSparklineChart({
   return (
     <div
       ref={containerRef}
-      className={`group relative flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-xs transition-colors duration-200 hover:border-gray-900 select-none ${className}`}
+      className={`group relative flex flex-col justify-between rounded-2xl border border-piedra-soft bg-papel p-4 shadow-xs transition-colors duration-200 hover:border-bosque select-none ${className}`}
     >
-      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-        <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase">
+      <div className="flex items-center justify-between border-b border-piedra-soft pb-2">
+        <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase">
           Curva Fenológica (Campaña Completa)
         </span>
-        <span className="text-[10px] font-mono font-bold text-gray-700">
+        <span className="text-[10px] font-mono font-bold text-bosque/80">
           Pico: 0.81
         </span>
       </div>
@@ -111,7 +111,7 @@ export default function NdviSparklineChart({
             y1={height - paddingY}
             x2={width - paddingX}
             y2={height - paddingY}
-            stroke="#f1f5f9"
+            stroke="#dcdcd2"
             strokeWidth="1.5"
           />
           <line
@@ -119,7 +119,7 @@ export default function NdviSparklineChart({
             y1={paddingY}
             x2={width - paddingX}
             y2={paddingY}
-            stroke="#f1f5f9"
+            stroke="#dcdcd2"
             strokeWidth="1.5"
             strokeDasharray="3 3"
           />
@@ -128,7 +128,7 @@ export default function NdviSparklineChart({
           <path
             d={pathData}
             fill="none"
-            stroke="#10b981"
+            stroke="#4a6b46"
             strokeWidth="2.5"
             strokeLinecap="round"
           />
@@ -140,8 +140,8 @@ export default function NdviSparklineChart({
               cx={pt.x}
               cy={pt.y}
               r="3"
-              fill="#ffffff"
-              stroke="#10b981"
+              fill="#fafaf6"
+              stroke="#4a6b46"
               strokeWidth="2"
               className="cursor-pointer hover:r-4 transition-all"
               onClick={() => onSelectDate && onSelectDate(pt.frame.localDate)}
@@ -155,17 +155,17 @@ export default function NdviSparklineChart({
               cx={activePoint.x}
               cy={activePoint.y}
               r="5.5"
-              fill="#065f46"
-              stroke="#ffffff"
+              fill="#1c3a2e"
+              stroke="#fafaf6"
               strokeWidth="2.5"
             />
           )}
         </svg>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] font-mono text-gray-400 border-t border-gray-100 pt-2">
+      <div className="flex items-center justify-between text-[10px] font-mono text-piedra border-t border-piedra-soft pt-2">
         <span>{usableFrames[0]?.localDate || "01 Ene"}</span>
-        <span className="text-gray-600 font-bold">Puntos: Observaciones S2</span>
+        <span className="text-bosque/60 font-bold">Puntos: Observaciones S2</span>
         <span>{usableFrames[usableFrames.length - 1]?.localDate || "01 Mar"}</span>
       </div>
     </div>
