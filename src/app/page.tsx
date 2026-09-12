@@ -112,8 +112,13 @@ export default function Home() {
                 boundary: f.boundary,
               };
             });
-            setBackendFields(mapped);
-            setSelectedField(mapped[0]);
+            // Combine backend real fields with rich mock catalog fields
+            const combinedFields = [
+              ...mapped,
+              ...FIELDS_DATA.filter((m) => !mapped.some((b) => b.id === m.id)),
+            ];
+            setBackendFields(combinedFields);
+            setSelectedField(combinedFields[0]);
 
             // 3. Fetch timelapses for the first field
             const firstFieldId = mapped[0].id;

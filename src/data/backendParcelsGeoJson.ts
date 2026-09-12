@@ -147,13 +147,15 @@ export function generateParcelsGeoJson(
   // 4. Process Portfolio Fields (Both macro perimeter AND internal agricultural parcels)
   fields.forEach((field) => {
     const isTarget = targetFieldId ? field.id === targetFieldId : true;
+    const staticSectors = FIELD_SECTORS_DATA[field.id];
 
     // A. Build Macro Field Boundary (Outer Perimeter)
     let outerBoundaryRing: number[][] = [];
-    let minLng = field.lng - 0.008;
-    let maxLng = field.lng + 0.008;
-    let minLat = field.lat - 0.007;
-    let maxLat = field.lat + 0.007;
+    const radiusDeg = Math.max(0.003, Math.min(0.025, Math.sqrt((field.hectares || 100) * 0.0001) * 0.65));
+    let minLng = field.lng - radiusDeg * 1.1;
+    let maxLng = field.lng + radiusDeg * 1.1;
+    let minLat = field.lat - radiusDeg * 0.9;
+    let maxLat = field.lat + radiusDeg * 0.9;
 
     const boundaryRing = field.boundary?.coordinates?.[0];
     if (boundaryRing && boundaryRing.length >= 3) {
@@ -168,6 +170,27 @@ export function generateParcelsGeoJson(
       maxLng = Math.max(...lngs);
       minLat = Math.min(...lats);
       maxLat = Math.max(...lats);
+    } else if (staticSectors && staticSectors.length > 0) {
+      const allLats: number[] = [];
+      const allLngs: number[] = [];
+      staticSectors.forEach((s) => {
+        s.offsets.forEach(([dLat, dLng]) => {
+          allLats.push(field.lat + dLat);
+          allLngs.push(field.lng + dLng);
+        });
+      });
+      minLng = Math.min(...allLngs);
+      maxLng = Math.max(...allLngs);
+      minLat = Math.min(...allLats);
+      maxLat = Math.max(...allLats);
+
+      outerBoundaryRing = sanitizeRing([
+        [minLng, maxLat],
+        [maxLng, maxLat],
+        [maxLng, minLat],
+        [minLng, minLat],
+        [minLng, maxLat],
+      ]);
     } else {
       outerBoundaryRing = sanitizeRing([
         [minLng, maxLat],
@@ -212,9 +235,6 @@ export function generateParcelsGeoJson(
     // B. Build Internal Agronomic Parcels (Hectares / Management Zones)
     const midLng = Number(((minLng + maxLng) / 2).toFixed(6));
     const midLat = Number(((minLat + maxLat) / 2).toFixed(6));
-
-    // Check if field has manual sectors or use real boundary subdivision
-    const staticSectors = FIELD_SECTORS_DATA[field.id];
 
     let sectorRings: { id: string; name: string; crop: string; hectares: number; baseNdvi: number; ring: number[][] }[] = [];
 
@@ -388,4 +408,147 @@ export function generateParcelsGeoJson(
     type: "FeatureCollection",
     features,
   };
+}
+
+export interface CalculatedLotInfo {
+  id: string;
+  name: string;
+  crop: string;
+  hectares: number;
+  percent: number;
+  ndvi: number;
+  color: string;
+  statusLabel: string;
+  centroid: [number, number]; // [lng, lat]
+}
+
+/**
+ * Returns structured breakdown of lots/hectares for a field,
+ * reactive to the current timeline satellite NDVI or seasonal curve.
+ */
+export function getFieldLotBreakdown(
+  field: FieldItem | null | undefined,
+  timelineState?: TimelineState,
+  selectedDate?: string
+): CalculatedLotInfo[] {
+  if (!field) return [];
+
+  const staticSectors = FIELD_SECTORS_DATA[field.id];
+  let sectorRings: { id: string; name: string; crop: string; hectares: number; baseNdvi: number; ring: number[][] }[] = [];
+
+  const radiusDeg = Math.max(0.003, Math.min(0.025, Math.sqrt((field.hectares || 100) * 0.0001) * 0.65));
+  let minLng = field.lng - radiusDeg * 1.1;
+  let maxLng = field.lng + radiusDeg * 1.1;
+  let minLat = field.lat - radiusDeg * 0.9;
+  let maxLat = field.lat + radiusDeg * 0.9;
+
+  const boundaryRing = field.boundary?.coordinates?.[0];
+  if (boundaryRing && boundaryRing.length >= 3) {
+    const lngs = boundaryRing.map((c: number[]) => c[0]);
+    const lats = boundaryRing.map((c: number[]) => c[1]);
+    minLng = Math.min(...lngs);
+    maxLng = Math.max(...lngs);
+    minLat = Math.min(...lats);
+    maxLat = Math.max(...lats);
+  }
+
+  const midLng = Number(((minLng + maxLng) / 2).toFixed(6));
+  const midLat = Number(((minLat + maxLat) / 2).toFixed(6));
+
+  if (staticSectors && staticSectors.length > 0) {
+    sectorRings = staticSectors.map((s) => ({
+      id: s.id,
+      name: s.name,
+      crop: s.crop,
+      hectares: s.hectares,
+      baseNdvi: s.ndvi,
+      ring: sanitizeRing(s.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat])),
+    }));
+  } else {
+    sectorRings = [
+      {
+        id: `${field.id}-lote-1`,
+        name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+        crop: field.primaryCrop || field.crop || "Maíz Tardío",
+        hectares: Number((field.hectares * 0.48).toFixed(1)),
+        baseNdvi: field.ndvi ?? 0.79,
+        ring: sanitizeRing([
+          [minLng, maxLat],
+          [maxLng, maxLat],
+          [maxLng, midLat],
+          [minLng, midLat],
+          [minLng, maxLat],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-2`,
+        name: "Lote 2 — Soja de 1ra",
+        crop: "Soja de 1ra",
+        hectares: Number((field.hectares * 0.32).toFixed(1)),
+        baseNdvi: Math.max(0.25, (field.ndvi ?? 0.79) - 0.05),
+        ring: sanitizeRing([
+          [minLng, midLat],
+          [midLng, midLat],
+          [midLng, minLat],
+          [minLng, minLat],
+          [minLng, midLat],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-3`,
+        name: "Lote 3 — Trigo / Barbecho",
+        crop: "Trigo / Barbecho",
+        hectares: Number((field.hectares * 0.20).toFixed(1)),
+        baseNdvi: Math.max(0.20, (field.ndvi ?? 0.79) - 0.12),
+        ring: sanitizeRing([
+          [midLng, midLat],
+          [maxLng, midLat],
+          [maxLng, minLat],
+          [midLng, minLat],
+          [midLng, midLat],
+        ]),
+      },
+    ];
+  }
+
+  const totalHectares = sectorRings.reduce((acc, s) => acc + s.hectares, 0) || field.hectares || 100;
+
+  // Resolve satellite NDVI if available
+  let backendObservedNdvi: number | null = null;
+  if (timelineState?.satellite && timelineState.satellite.usable) {
+    const meanVal = timelineState.satellite.ndvi?.mean?.value;
+    if (typeof meanVal === "number" && !isNaN(meanVal)) {
+      backendObservedNdvi = meanVal;
+    }
+  }
+
+  return sectorRings.map((sec, sIdx) => {
+    // Calculate centroid
+    const cLng = sec.ring.reduce((acc, pt) => acc + pt[0], 0) / (sec.ring.length || 1);
+    const cLat = sec.ring.reduce((acc, pt) => acc + pt[1], 0) / (sec.ring.length || 1);
+
+    let parcelNdvi = sec.baseNdvi;
+    let statusLabel = "Vegetación activa";
+
+    if (backendObservedNdvi != null) {
+      const sectorVariance = sIdx === 0 ? 1.02 : sIdx === 1 ? 0.98 : 0.94;
+      parcelNdvi = Math.max(0.12, Math.min(0.95, backendObservedNdvi * sectorVariance));
+      statusLabel = parcelNdvi > 0.75 ? "Pico fotosintético" : parcelNdvi > 0.50 ? "Desarrollo vegetativo" : "Emergencia";
+    } else {
+      parcelNdvi = getSimulatedParcelNdvi(sec.baseNdvi, sec.crop, 0.5);
+      statusLabel = parcelNdvi > 0.75 ? "Floración óptima" : parcelNdvi > 0.50 ? "Crecimiento foliar" : "Emergencia";
+    }
+
+    return {
+      id: sec.id,
+      name: sec.name,
+      crop: sec.crop,
+      hectares: sec.hectares,
+      percent: Math.round((sec.hectares / totalHectares) * 100),
+      ndvi: parseFloat(parcelNdvi.toFixed(2)),
+      color: getNdviRampColor(parcelNdvi),
+      statusLabel,
+      centroid: [Number(cLng.toFixed(6)), Number(cLat.toFixed(6))],
+    };
+  });
 }

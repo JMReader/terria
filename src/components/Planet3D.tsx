@@ -7,7 +7,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { FIELDS_DATA, FieldItem } from "@/data/fieldsData";
 import { FIELD_SECTORS_DATA, NEIGHBOR_CADASTRE_PARCELS } from "@/data/sectorsData";
 import { useFieldTimelapse } from "@/hooks/useFieldTimelapse";
-import { generateParcelsGeoJson } from "@/data/backendParcelsGeoJson";
+import { generateParcelsGeoJson, getFieldLotBreakdown } from "@/data/backendParcelsGeoJson";
+import FieldHectaresInspector from "@/components/FieldHectaresInspector";
 import {
   ZoomIn,
   ZoomOut,
@@ -630,45 +631,150 @@ export default function Planet3D({
     };
   }, [fieldsList, onSelectField]);
 
-// React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
-useEffect(() => {
-  if (!mapRef.current || !selectedField) return;
-  const map = mapRef.current;
+  // Camera focus handlers for lots and fields
+  const handleFocusLot = useCallback((lng: number, lat: number) => {
+    if (!mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [lng, lat],
+      zoom: 15.2,
+      pitch: 45,
+      bearing: -10,
+      duration: 1800,
+      essential: true,
+    });
+  }, []);
 
-  const targetZoom = isExpanded ? 14.8 : 6.8;
-  const targetPitch = isExpanded ? 45 : 20;
+  const handleFocusField = useCallback(() => {
+    if (!mapRef.current || !selectedField) return;
+    mapRef.current.flyTo({
+      center: [selectedField.lng, selectedField.lat],
+      zoom: 14.6,
+      pitch: 42,
+      bearing: -10,
+      duration: 2000,
+      essential: true,
+    });
+  }, [selectedField]);
 
-  map.flyTo({
-    center: [selectedField.lng, selectedField.lat],
-    zoom: targetZoom,
-    pitch: targetPitch,
-    bearing: isExpanded ? -15 : 0,
-    essential: true,
-    duration: 2200,
-  });
+  // Parcel Lot Hectare Floating Badges (Visible on map over active field)
+  const lotMarkersRef = useRef<maplibregl.Marker[]>([]);
 
-  // Update active highlight & halo glow filters safely
-  if (map.isStyleLoaded && map.isStyleLoaded()) {
-    try {
-      if (map.getLayer("field-active-highlight")) {
-        map.setFilter("field-active-highlight", [
-          "all",
-          ["==", ["get", "isPortfolio"], true],
-          ["==", ["get", "fieldId"], selectedField.id],
-        ]);
+  useEffect(() => {
+    if (!mapRef.current || !selectedField) return;
+    const map = mapRef.current;
+
+    // Clean previous lot markers
+    lotMarkersRef.current.forEach((m) => m.remove());
+    lotMarkersRef.current = [];
+
+    const lots = getFieldLotBreakdown(
+      selectedField,
+      timelapse?.timelineState,
+      timelapse?.timelineState?.selectedDate
+    );
+
+    lots.forEach((lot) => {
+      const el = document.createElement("div");
+      el.className = "terria-lot-badge cursor-pointer select-none transition-transform hover:scale-105 active:scale-95";
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.96);
+          border: 1.5px solid ${lot.color};
+          padding: 3px 8px;
+          border-radius: 9999px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          backdrop-filter: blur(8px);
+          font-family: system-ui, sans-serif;
+          white-space: nowrap;
+        ">
+          <span style="
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 9999px;
+            background: ${lot.color};
+          "></span>
+          <span style="font-size: 11px; font-weight: 800; color: #0f172a;">${lot.name}</span>
+          <span style="
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 6px;
+          ">${lot.hectares} ha</span>
+          <span style="
+            background: ${lot.color};
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 6px;
+          ">${lot.ndvi.toFixed(2)}</span>
+        </div>
+      `;
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleFocusLot(lot.centroid[0], lot.centroid[1]);
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([lot.centroid[0], lot.centroid[1]])
+        .addTo(map);
+
+      lotMarkersRef.current.push(marker);
+    });
+
+    return () => {
+      lotMarkersRef.current.forEach((m) => m.remove());
+      lotMarkersRef.current = [];
+    };
+  }, [selectedField, timelapse?.timelineState, handleFocusLot]);
+
+  // React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
+  useEffect(() => {
+    if (!mapRef.current || !selectedField) return;
+    const map = mapRef.current;
+
+    // Fly camera directly to parcel level zoom so lots and hectares are clearly visible
+    const targetZoom = isExpanded ? 15.0 : 14.6;
+    const targetPitch = 42;
+
+    map.flyTo({
+      center: [selectedField.lng, selectedField.lat],
+      zoom: targetZoom,
+      pitch: targetPitch,
+      bearing: isExpanded ? -15 : -10,
+      essential: true,
+      duration: 2200,
+    });
+
+    // Update active highlight & halo glow filters safely
+    if (map.isStyleLoaded && map.isStyleLoaded()) {
+      try {
+        if (map.getLayer("field-active-highlight")) {
+          map.setFilter("field-active-highlight", [
+            "all",
+            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "fieldId"], selectedField.id],
+          ]);
+        }
+        if (map.getLayer("field-active-halo")) {
+          map.setFilter("field-active-halo", [
+            "all",
+            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "fieldId"], selectedField.id],
+          ]);
+        }
+      } catch {
+        // Style not fully ready yet
       }
-      if (map.getLayer("field-active-halo")) {
-        map.setFilter("field-active-halo", [
-          "all",
-          ["==", ["get", "isPortfolio"], true],
-          ["==", ["get", "fieldId"], selectedField.id],
-        ]);
-      }
-    } catch {
-      // Style not fully ready yet
     }
-  }
-}, [selectedField, isExpanded]);
+  }, [selectedField, isExpanded]);
 
   // Switch Map Style
   const handleStyleChange = (styleKey: FreeMapStyleKey) => {
@@ -889,6 +995,23 @@ useEffect(() => {
         </div>
 
       </div>
+
+      {/* Bottom Left: Interactive Field Hectares & Lots Inspector */}
+      {selectedField && (
+        <div className="absolute bottom-4 left-4 z-20 pointer-events-none max-w-[460px] w-[calc(100%-6rem)] sm:w-auto">
+          <FieldHectaresInspector
+            field={selectedField}
+            fieldsList={fieldsList}
+            timelineState={timelapse?.timelineState}
+            selectedDate={timelapse?.timelineState?.selectedDate}
+            onSelectField={(f) => {
+              if (onSelectField) onSelectField(f);
+            }}
+            onFocusField={handleFocusField}
+            onFocusLot={handleFocusLot}
+          />
+        </div>
+      )}
 
       {/* Bottom Right: Mapbox Zoom Controls (+ / - / Reset) */}
       <div className="absolute bottom-4 right-4 z-20 flex flex-col items-center gap-1.5 pointer-events-auto">
