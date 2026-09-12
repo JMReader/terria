@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     solana_memo_program_id: str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
     # JSON byte array, base58 o base64. Nunca commitear; sólo variable de entorno.
     solana_issuer_secret_key: str | None = None
-    cert_schema_version: str = "terria.cert/3"
+    cert_schema_version: str = "terria.cert/4"
     cert_algorithm_version: str = "jcs+sha256/1"
     cert_storage_bucket: str = "cert-payloads"
     # Imagen NDVI de portada del certificado (Supabase Storage).

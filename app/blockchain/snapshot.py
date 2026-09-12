@@ -65,6 +65,18 @@ def build_sources(manifests: list[TimelapseManifest]) -> list[dict[str, Any]]:
     return [sources[key] for key in sorted(sources)]
 
 
+def observations_up_to(
+    observations: list[dict[str, Any]], month: str
+) -> list[dict[str, Any]]:
+    """Observaciones acumuladas hasta `month` (YYYY-MM, inclusive)."""
+    return [item for item in observations if item["date"][:7] <= month]
+
+
+def monthly_up_to(monthly: list[dict[str, Any]], month: str) -> list[dict[str, Any]]:
+    """Serie mensual acumulada hasta `month` (YYYY-MM, inclusive)."""
+    return [item for item in monthly if item["month"] <= month]
+
+
 def build_snapshot(
     *,
     field: FieldResponse,
@@ -78,10 +90,15 @@ def build_snapshot(
     observations: list[dict[str, Any]] | None = None,
     monthly: list[dict[str, Any]] | None = None,
     sources: list[dict[str, Any]] | None = None,
+    scope: str = "campaign",
+    month: str | None = None,
 ) -> dict[str, Any]:
+    """Snapshot canónico. `scope=month` + `month` identifican la certificación viva mensual."""
     issued = (issued_at or datetime.now(timezone.utc)).replace(microsecond=0).isoformat()
     return {
         "schema_version": schema_version,
+        "scope": scope,
+        "month": month,
         "cert_uid": cert_uid,
         "field": {
             "uid": str(field.id),

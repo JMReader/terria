@@ -1,18 +1,25 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from app.blockchain.canonical import CanonicalizationError, content_hash
 from app.blockchain.payload import build_memo, parse_memo
-from app.blockchain.snapshot import build_observations, build_sources
+from app.blockchain.snapshot import (
+    build_observations,
+    build_sources,
+    monthly_up_to,
+    observations_up_to,
+)
 from app.main import app
 from app.schemas import PolygonGeometry
 from app.timelapse.monthly import build_monthly_series, campaign_of
 from app.timelapse.schemas import (
     NdviMetrics,
+    TimelapseDatasetSummary,
     TimelapseFrame,
     TimelapseManifest,
     TimelapseSource,
@@ -264,3 +271,117 @@ def test_build_sources_deduplicates_and_has_no_floats() -> None:
     assert len(sources) == 1
     assert sources[0]["provider"] == "Copernicus CDSE"
     assert sources[0]["retrieved_at"].startswith("2024-10-02T")
+
+
+def test_cumulative_helpers_filter_by_month() -> None:
+    observations = [
+        {"date": "2024-10-02"},
+        {"date": "2024-11-05"},
+        {"date": "2024-12-01"},
+    ]
+    assert [item["date"] for item in observations_up_to(observations, "2024-11")] == [
+        "2024-10-02",
+        "2024-11-05",
+    ]
+    monthly = [{"month": "2024-10"}, {"month": "2024-11"}, {"month": "2024-12"}]
+    assert monthly_up_to(monthly, "2024-10") == [{"month": "2024-10"}]
+
+
+def _multi_month_manifest() -> TimelapseManifest:
+    frames: list[TimelapseFrame] = []
+    weather: list[WeatherDaily] = []
+    for index, (year, month_number) in enumerate([(2024, 10), (2024, 11), (2024, 12)]):
+        day = date(year, month_number, 10)
+        frames.append(
+            TimelapseFrame(
+                id=uuid4(),
+                observed_at=datetime(year, month_number, 10, tzinfo=timezone.utc),
+                local_date=day,
+                usable=True,
+                valid_area_fraction=1.0,
+                ndvi=NdviMetrics(mean=0.4 + index / 100, p10=0.17, p90=0.74),
+            )
+        )
+        weather.append(
+            WeatherDaily(
+                date=day,
+                precipitation_mm=5.0,
+                precipitation_7d_mm=5.0,
+                temperature_min_c=10.0,
+                temperature_max_c=20.0,
+            )
+        )
+    return TimelapseManifest(
+        dataset_id=uuid4(),
+        processing_version="test",
+        field_id=uuid4(),
+        geometry_version_id=uuid4(),
+        boundary=PolygonGeometry(
+            type="Polygon", coordinates=[[[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.0, 0.0]]]
+        ),
+        area_hectares=1.0,
+        start_date=date(2024, 10, 10),
+        end_date=date(2024, 12, 10),
+        status="ready",
+        generated_at=datetime(2024, 12, 10, tzinfo=timezone.utc),
+        frames=frames,
+        weather_daily=weather,
+        sources=[
+            TimelapseSource(
+                id="sentinel-2",
+                provider="Copernicus CDSE",
+                dataset="S2 L2A",
+                retrieved_at=datetime(2024, 12, 10, tzinfo=timezone.utc),
+                documentation_url="https://example.com",
+                attribution="Copernicus",
+            )
+        ],
+    )
+
+
+def test_monthly_certifications_are_cumulative_and_chained(monkeypatch) -> None:
+    from app.blockchain import service
+    from app.blockchain.repository import get_certification_repository
+    from app.store import get_field_store
+
+    manifest = _multi_month_manifest()
+    monkeypatch.setattr(service.timelapse_repository, "get_dataset", lambda _id: manifest)
+
+    field_id = _create_field("Lote Mensual")
+    field = get_field_store().get(UUID(field_id)).value
+    datasets = [
+        TimelapseDatasetSummary(
+            id=manifest.dataset_id,
+            field_id=field.id,
+            start_date=manifest.start_date,
+            end_date=manifest.end_date,
+            status="ready",
+            is_demo=False,
+            generated_at=manifest.generated_at,
+            frames_count=len(manifest.frames),
+        )
+    ]
+
+    issued = service.issue_monthly_certifications(field=field, datasets=datasets, anchor=True)
+    assert [certification.version for certification in issued] == [1, 2, 3]
+    assert issued[0].prev_content_hash is None
+    assert issued[1].prev_content_hash == issued[0].content_hash
+    assert issued[2].prev_content_hash == issued[1].content_hash
+    assert len({certification.content_hash for certification in issued}) == 3
+
+    snapshot = json.loads(get_certification_repository().get_payload(issued[2].id) or b"{}")
+    assert snapshot["scope"] == "month"
+    assert snapshot["month"] == "2024-12"
+    assert snapshot["period"] == {"from": 2024, "to": 2024}
+    assert len(snapshot["observations"]) == 3
+    assert [item["month"] for item in snapshot["monthly"]] == [
+        "2024-10",
+        "2024-11",
+        "2024-12",
+    ]
+
+    verified = client.get(f"/v1/public/certifications/{issued[2].cert_uid}/verify").json()
+    assert verified["status"] == "verified"
+
+    again = service.issue_monthly_certifications(field=field, datasets=datasets, anchor=True)
+    assert again == []
