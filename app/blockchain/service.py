@@ -267,14 +267,17 @@ def issue_monthly_certifications(
     return issued
 
 
-def verify_certification(cert_uid: str) -> CertificationVerifyResponse | None:
-    record = _repo().get_by_cert_uid(cert_uid)
-    if record is None:
-        return None
+def _verify_record(
+    record: CertificationRecord,
+    payload: bytes | None,
+    anchor: AnchorRecord | None,
+) -> CertificationVerifyResponse:
+    """Recomputa el hash y lo compara contra el memo on-chain.
 
-    payload = _repo().get_payload(record.id)
+    Recibe `record`/`payload`/`anchor` ya leídos para no repetir las consultas
+    (evita el refetch duplicado al construir el documento público).
+    """
     recomputed = sha256_hex(payload) if payload is not None else ""
-    anchor = _repo().get_anchor(record.id)
 
     status: str = "pending"
     on_chain_memo: str | None = None
@@ -310,6 +313,16 @@ def verify_certification(cert_uid: str) -> CertificationVerifyResponse | None:
         tx_signature=tx_signature,
         explorer_url=explorer_url(anchor.cluster, tx_signature) if anchor else None,
     )
+
+
+def verify_certification(cert_uid: str) -> CertificationVerifyResponse | None:
+    record = _repo().get_by_cert_uid(cert_uid)
+    if record is None:
+        return None
+
+    payload = _repo().get_payload(record.id)
+    anchor = _repo().get_anchor(record.id)
+    return _verify_record(record, payload, anchor)
 
 
 def _document_field(
@@ -351,7 +364,7 @@ def build_certification_document(cert_uid: str) -> CertificationDocumentResponse
             snapshot = {}
 
     anchor = _repo().get_anchor(record.id)
-    verification = verify_certification(cert_uid)
+    verification = _verify_record(record, payload, anchor)
 
     return CertificationDocumentResponse(
         cert_uid=record.cert_uid,
@@ -435,10 +448,6 @@ def get_certification_hero_image(cert_uid: str) -> bytes | None:
     except (ValueError, TypeError):
         return None
 
-    local = _local_hero_image(snapshot)
-    if local is not None:
-        return local
-
     storage = _asset_storage()
     storage_ref = f"{settings.assets_storage_bucket}/certificates/{cert_uid}.png"
     if storage is not None:
@@ -448,6 +457,10 @@ def get_certification_hero_image(cert_uid: str) -> bytes | None:
             cached = None
         if cached is not None:
             return cached
+
+    local = _local_hero_image(snapshot)
+    if local is not None:
+        return local
 
     if not settings.cert_hero_generate:
         return None

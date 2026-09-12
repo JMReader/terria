@@ -138,23 +138,6 @@
     }
     .integrity .kv th { width: 26%; }
     a { color: var(--brand-dark); }
-    .hero {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      image-rendering: pixelated;
-      background: #0b1a12;
-    }
-    .footprint {
-      width: 100%;
-      max-width: 460px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: #f4f8f4;
-    }
-    .footprint polygon { fill: #0a7d33; fill-opacity: 0.16; stroke: #0a7d33; stroke-width: 2; }
-    .footprint circle { fill: #075c25; }
-    .hero-caption { font-size: 11px; color: var(--muted); margin-top: 6px; }
     .note {
       font-size: 12px;
       color: var(--muted);
@@ -256,18 +239,6 @@
           </thead>
           <tbody id="monthly-body"></tbody>
         </table>
-      </section>
-
-      <section id="hero-section" hidden>
-        <h2>Última imagen satelital</h2>
-        <img class="hero" id="hero" alt="NDVI del campo" />
-        <p class="hero-caption" id="hero-caption"></p>
-      </section>
-
-      <section id="footprint-section" hidden>
-        <h2>Geometría certificada</h2>
-        <svg id="footprint" class="footprint" viewBox="0 0 400 260" role="img" aria-label="Huella del campo"></svg>
-        <p class="hero-caption" id="footprint-caption"></p>
       </section>
 
       <section id="observations-section" hidden>
@@ -423,34 +394,7 @@
       $("monthly-section").hidden = monthly.length === 0;
     }
 
-    function renderFootprint(boundary) {
-      const ring = boundary && boundary.coordinates && boundary.coordinates[0];
-      if (!ring || ring.length < 3) return;
-      const xs = ring.map((p) => p[0]);
-      const ys = ring.map((p) => p[1]);
-      const minX = Math.min(...xs), maxX = Math.max(...xs);
-      const minY = Math.min(...ys), maxY = Math.max(...ys);
-      const w = maxX - minX || 1e-6, h = maxY - minY || 1e-6;
-      const W = 400, H = 260, pad = 24;
-      const scale = Math.min((W - 2 * pad) / w, (H - 2 * pad) / h);
-      const offX = (W - w * scale) / 2, offY = (H - h * scale) / 2;
-      const project = ([x, y]) => [
-        (offX + (x - minX) * scale).toFixed(1),
-        (offY + (maxY - y) * scale).toFixed(1),
-      ];
-      const points = ring.map(project).map((p) => p.join(",")).join(" ");
-      const [cx, cy] = project([(minX + maxX) / 2, (minY + maxY) / 2]);
-      const svg = $("footprint");
-      svg.innerHTML =
-        "<polygon points='" + points + "'></polygon>" +
-        "<circle cx='" + cx + "' cy='" + cy + "' r='4'></circle>";
-      $("footprint-caption").textContent =
-        "Polígono del campo tal como quedó congelado en el snapshot (WGS84, " +
-        Math.abs(maxX - minX).toFixed(3) + "° × " + Math.abs(maxY - minY).toFixed(3) + "°).";
-      $("footprint-section").hidden = false;
-    }
-
-    function renderIntegrity(doc, verify) {
+    function renderIntegrity(doc) {
       $("i-cert").textContent = doc.cert_uid;
       $("i-hash").textContent = doc.content_hash;
       if (doc.prev_content_hash) {
@@ -458,13 +402,13 @@
       } else {
         $("i-prev").textContent = "— (primera versión)";
       }
-      $("i-memo").textContent = (verify && verify.on_chain_memo) || "—";
+      $("i-memo").textContent = (doc.anchor && doc.anchor.memo_payload) || "—";
       $("i-cluster").textContent = doc.anchor ? doc.anchor.cluster : "—";
       $("i-algo").textContent = doc.algorithm_version + " · " + doc.schema_version;
 
       const link = $("i-tx");
-      const url = (doc.anchor && doc.anchor.explorer_url) || (verify && verify.explorer_url);
-      const sig = (doc.anchor && doc.anchor.tx_signature) || (verify && verify.tx_signature);
+      const url = doc.anchor && doc.anchor.explorer_url;
+      const sig = doc.anchor && doc.anchor.tx_signature;
       if (url && sig) {
         link.href = url;
         link.textContent = sig;
@@ -474,7 +418,7 @@
       $("integrity-section").hidden = false;
     }
 
-    function renderDocument(doc, verify) {
+    function renderDocument(doc) {
       const f = doc.field;
       $("field-name").textContent = f.name;
       const loc = [f.locality, f.province].filter(Boolean).join(", ");
@@ -496,34 +440,19 @@
       renderObservations(observations);
       renderSources(snapshot.sources || []);
 
-      renderFootprint(f.boundary);
-
-      if (doc.hero_image_url) {
-        const img = $("hero");
-        img.onerror = () => { $("hero-section").hidden = true; };
-        img.onload = () => { $("hero-section").hidden = false; };
-        img.src = doc.hero_image_url;
-        $("hero-caption").textContent =
-          "Composición NDVI derivada de Sentinel-2 L2A (Copernicus). Escena de mayor vigor del período.";
-      }
-
-      renderIntegrity(doc, verify);
+      renderIntegrity(doc);
     }
 
     function load() {
       $("doc-subtitle").textContent = "Cargando…";
-      Promise.all([
-        fetch("/v1/public/certifications/" + encodeURIComponent(uid)).then((r) => {
+      fetch("/v1/public/certifications/" + encodeURIComponent(uid))
+        .then((r) => {
           if (!r.ok) throw new Error("certificado no encontrado (" + r.status + ")");
           return r.json();
-        }),
-        fetch("/v1/public/certifications/" + encodeURIComponent(uid) + "/verify")
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
-      ])
-        .then(([doc, verify]) => {
-          setBadge((verify && verify.status) || doc.verification_status);
-          renderDocument(doc, verify);
+        })
+        .then((doc) => {
+          setBadge(doc.verification_status);
+          renderDocument(doc);
         })
         .catch((err) => {
           setBadge("tampered");

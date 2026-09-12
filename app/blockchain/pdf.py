@@ -15,7 +15,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    Image,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -24,7 +23,6 @@ from reportlab.platypus import (
 )
 
 from app.blockchain.schemas import CertificationDocumentResponse
-from app.blockchain.service import get_certification_hero_image
 
 BRAND = colors.HexColor("#0A7D33")
 BRAND_DARK = colors.HexColor("#075C25")
@@ -202,19 +200,6 @@ def render_certification_pdf(document: CertificationDocumentResponse) -> bytes:
     ]))
     story.append(Spacer(1, 8))
     story.append(details_table)
-
-    # ── Portada NDVI ──────────────────────────────────────────────────────────
-    hero = get_certification_hero_image(document.cert_uid)
-    if hero:
-        image = Image(BytesIO(hero))
-        ratio = image.imageHeight / image.imageWidth
-        image.drawWidth = width
-        image.drawHeight = width * ratio
-        story.append(Spacer(1, 12))
-        story.append(image)
-        story.append(Paragraph(
-            "Composición NDVI derivada de Sentinel-2 L2A (Copernicus / Microsoft Planetary Computer). "
-            "Recorte sobre el bounding box del lote certificado.", styles["caption"]))
 
     # ── Resumen ───────────────────────────────────────────────────────────────
     story.append(Spacer(1, 12))
