@@ -15,6 +15,8 @@ interface FieldCardsListProps {
   onInspect3D?: (field: FieldItem) => void;
   filterQuery?: string;
   className?: string;
+  /** Pass backend-fetched fields to override the local FIELDS_DATA mock */
+  fields?: FieldItem[];
 }
 
 export default function FieldCardsList({
@@ -23,21 +25,23 @@ export default function FieldCardsList({
   onInspect3D,
   filterQuery = "",
   className = "",
+  fields,
 }: FieldCardsListProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const sourceData = fields ?? FIELDS_DATA;
 
   const filteredFields = React.useMemo(() => {
-    if (!filterQuery.trim()) return FIELDS_DATA;
+    if (!filterQuery.trim()) return sourceData;
     const q = filterQuery.toLowerCase();
-    return FIELDS_DATA.filter((field) => {
+    return sourceData.filter((field) => {
       const matchesName = field.name.toLowerCase().includes(q);
-      const matchesLoc = field.locality.toLowerCase().includes(q) || field.province.toLowerCase().includes(q);
-      const matchesCrop = field.primaryCrop.toLowerCase().includes(q);
-      const matchesSoil = field.soilSeries.toLowerCase().includes(q);
-      const matchesTags = field.tags.some((t) => t.toLowerCase().includes(q));
+      const matchesLoc = (field.locality ?? "").toLowerCase().includes(q) || (field.province ?? "").toLowerCase().includes(q);
+      const matchesCrop = (field.primaryCrop ?? field.crop ?? "").toLowerCase().includes(q);
+      const matchesSoil = (field.soilSeries ?? field.soilType ?? "").toLowerCase().includes(q);
+      const matchesTags = (field.tags ?? []).some((t: string) => t.toLowerCase().includes(q));
       return matchesName || matchesLoc || matchesCrop || matchesSoil || matchesTags;
     });
-  }, [filterQuery]);
+  }, [filterQuery, sourceData]);
 
   useEffect(() => {
     if (listRef.current) {

@@ -1,0 +1,228 @@
+{
+  "$schema": "technical-spec/v1",
+  "feature_id": "planet3d-map-upgrade",
+  "title": "Planet3D — Technical Spec: MapLibre GL v6.9 como librería definitiva",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval",
+  "based_on": "functional-spec v1.0.0",
+
+  "architecture_decision": {
+    "library_chosen": "maplibre-gl v6.9.0",
+    "rationale": [
+      "Ya está instalado en el repo — sin npm install adicional",
+      "Es el fork oficial de maplibre.org (description: 'BSD licensed community fork of mapbox-gl')",
+      "Tiene setProjection() nativo con soporte para 'mercator' y 'vertical-perspective'",
+      "Tiene setSky() nativo — equivalente a setFog() de Mapbox para atmósfera/cielo",
+      "API 95% compatible con el código actual de Planet3D.tsx — mínimo refactor",
+      "Bundle de 585KB (.mjs) — dentro del límite de 800KB del BR-06",
+      "Cero tokens requeridos — cumple BR-01"
+    ],
+    "rejected_alternatives": {
+      "globe_projection_literal": "La string 'globe' NO existe en maplibre-gl v6.9. En cambio, 'vertical-perspective' provee un efecto visual similar a globe de Google Maps — perspectiva ortográfica que se ve esférica en zoom bajo.",
+      "downgrade_to_v4_lts": "Innecesario — v6.9 ya tiene todas las features requeridas.",
+      "deckgl": "Overkill para el hackathon. Complejidad alta, bundle > 900KB.",
+      "leaflet": "No cumple BR-05 — sin pitch 3D ni vector fill/line layers con expresiones."
+    },
+    "globe_strategy": {
+      "zoom_global_lt_5": "Usar projection: { type: 'vertical-perspective' } — efecto pseudo-globe",
+      "zoom_regional_5_to_11": "Transición a 'mercator' automática con setProjection()",
+      "zoom_parcel_gt_11": "'mercator' estándar para máxima precisión en lotes agrícolas",
+      "implementation": "map.on('zoom') callback detecta umbral y llama map.setProjection()"
+    },
+    "sky_atmosphere_strategy": {
+      "api": "map.setSky({ 'sky-color': '#ffffff', 'sky-horizon-blend': 0.4, 'horizon-color': '#e8f4f8', 'horizon-fog-blend': 0.1 })",
+      "trigger": "Llamar en el handler de style.load después de addParcelLayers",
+      "fallback": "Si setSky lanza error, CSS background del contenedor = white como respaldo"
+    }
+  },
+
+  "module_boundaries": {
+    "Planet3D_tsx": {
+      "responsibilities": [
+        "Inicializar maplibre-gl.Map con projection vertical-perspective en zoom global",
+        "Gestionar estilos de basemap (5 opciones raster gratuitas)",
+        "Renderizar GeoJSON de parcelas con fill/line layers",
+        "Manejar click → onSelectField, hover → popup",
+        "Fly animation al campo seleccionado",
+        "Sincronizar GeoJSON cuando cambia fecha/capa del timelapse",
+        "Switch de projection según zoom level"
+      ],
+      "NOT_responsible_for": [
+        "Fetch de datos al backend — eso es page.tsx y hooks",
+        "TimelapseController UI",
+        "3D isometric view (Field3DIsoViewer)"
+      ]
+    },
+    "page_tsx": {
+      "responsibilities": [
+        "Fetch de fields desde GET /v1/fields",
+        "Fetch de timelapse manifest desde GET /v1/fields/:id/timelapses/:dsid",
+        "Pasar backendFields y timelapseManifest a los componentes hijos"
+      ]
+    }
+  },
+
+  "data_contracts": {
+    "maplibre_map_init_options": {
+      "type": "maplibregl.MapOptions",
+      "projection_initial": { "type": "vertical-perspective" },
+      "no_access_token": "Campo removido — no existe en maplibre-gl API",
+      "style": "OPEN_MAP_STYLES[currentStyleKey] — objetos Style Spec v8 ya existentes",
+      "center": "[field.lng, field.lat] | [-64.215, -33.115]",
+      "zoom": "2.2 global | 14.8 parcel",
+      "pitch": "0 global | 45 parcel",
+      "maxZoom": 16.8,
+      "minZoom": 1.5,
+      "attributionControl": false
+    },
+    "sky_spec": {
+      "type": "maplibregl.SkySpecification",
+      "sky-color": "#ffffff",
+      "sky-horizon-blend": 0.5,
+      "horizon-color": "#dbeafe",
+      "horizon-fog-blend": 0.05,
+      "atmosphere-blend": 0.5
+    },
+    "parcel_geojson_source": {
+      "type": "geojson",
+      "data": "retorno de generateParcelsGeoJson(selectedDate, activeLayer, fieldId)",
+      "backend_endpoint": "GET http://127.0.0.1:8000/v1/fields/{field_id}/timelapses/{dataset_id}/timeline-state?date=YYYY-MM-DD"
+    },
+    "backend_field_shape": {
+      "id": "string (UUID)",
+      "name": "string",
+      "centroid_lat": "number | null",
+      "centroid_lng": "number | null",
+      "area_hectares": "number | null",
+      "primary_crop": "string | null",
+      "is_published": "boolean",
+      "public_slug": "string | null"
+    }
+  },
+
+  "import_changes": {
+    "before": {
+      "import_line": "import mapboxgl from 'maplibre-gl'",
+      "problem": "Alias confuso — el nombre 'mapboxgl' en el código hace pensar que sigue siendo mapbox"
+    },
+    "after": {
+      "import_line": "import maplibregl from 'maplibre-gl'",
+      "css_line": "import 'maplibre-gl/dist/maplibre-gl.css'",
+      "rename_in_code": "Reemplazar TODAS las referencias de 'mapboxgl.' por 'maplibregl.' en Planet3D.tsx",
+      "remove_from_package": "mapbox-gl y @types/mapbox-gl removidos del package.json"
+    }
+  },
+
+  "api_differences_handled": [
+    {
+      "mapbox_api": "mapboxgl.accessToken = '...'",
+      "maplibre_equivalent": "No existe — REMOVER sin reemplazo",
+      "status": "DONE — ya removido en sesión anterior"
+    },
+    {
+      "mapbox_api": "new mapboxgl.Map({ projection: 'globe' })",
+      "maplibre_equivalent": "new maplibregl.Map({ projection: { type: 'vertical-perspective' } })",
+      "status": "PENDING"
+    },
+    {
+      "mapbox_api": "map.setFog({ color, high-color, horizon-blend, space-color, star-intensity })",
+      "maplibre_equivalent": "map.setSky({ 'sky-color', 'sky-horizon-blend', 'horizon-color', 'horizon-fog-blend' })",
+      "status": "PENDING"
+    },
+    {
+      "mapbox_api": "mapboxgl.workerUrl = '/mapbox-gl-csp-worker.js'",
+      "maplibre_equivalent": "No necesario — workers bundleados en maplibre-gl",
+      "status": "DONE — ya removido en sesión anterior"
+    },
+    {
+      "mapbox_api": "map.setProjection('globe')",
+      "maplibre_equivalent": "map.setProjection({ type: 'vertical-perspective' }) en zoom < 5, map.setProjection({ type: 'mercator' }) en zoom > 5",
+      "status": "PENDING"
+    }
+  ],
+
+  "implementation_phases": [
+    {
+      "phase": 1,
+      "title": "Limpieza de imports y alias",
+      "files": ["src/components/Planet3D.tsx", "package.json"],
+      "tasks": [
+        "Cambiar 'import mapboxgl from maplibre-gl' → 'import maplibregl from maplibre-gl'",
+        "Buscar-y-reemplazar todas las instancias de 'mapboxgl.' por 'maplibregl.' en Planet3D.tsx",
+        "Remover mapbox-gl y @types/mapbox-gl del package.json y ejecutar npm install",
+        "Verificar que no queden referencias a mapbox-gl en ningún archivo"
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "Globe pseudo-projection + Sky atmosphere",
+      "files": ["src/components/Planet3D.tsx"],
+      "tasks": [
+        "En new maplibregl.Map({...}): agregar projection: { type: 'vertical-perspective' }",
+        "Reemplazar applyFogAndAtmosphere → applySkyAndAtmosphere con map.setSky()",
+        "En map.on('zoom'): llamar map.setProjection() según umbral de zoom",
+        "Agregar CSS background:#ffffff al contenedor para fallback cuando setSky no esté listo"
+      ]
+    },
+    {
+      "phase": 3,
+      "title": "Ajuste de tipos TypeScript",
+      "files": ["src/components/Planet3D.tsx"],
+      "tasks": [
+        "mapRef: useRef<maplibregl.Map | null>",
+        "markersRef: useRef<maplibregl.Marker[]>",
+        "addParcelLayers param: (map: maplibregl.Map)",
+        "cast de GeoJSONSource: map.getSource('field-parcels') as maplibregl.GeoJSONSource",
+        "Eliminar @ts-ignore residuales de mapboxgl"
+      ]
+    },
+    {
+      "phase": 4,
+      "title": "Verificación de conexión con backend",
+      "files": ["src/app/page.tsx"],
+      "tasks": [
+        "Confirmar que el fetch a GET /v1/fields retorna datos del campo demo",
+        "Confirmar que el fetch del timelapse manifest retorna el dataset sintético",
+        "Verificar que los markers en el mapa usan backendFields en lugar de FIELDS_DATA",
+        "Agregar indicador visual del status del backend (dot verde=connected, gris=offline)"
+      ]
+    }
+  ],
+
+  "failure_modes": [
+    {
+      "scenario": "Backend offline",
+      "handling": "setBackendStatus('offline') → usar FIELDS_DATA mock + DEMO_TIMELAPSE_MANIFEST. Log en consola: '[TERRIA] Backend not reachable — using demo mock data'"
+    },
+    {
+      "scenario": "map.setSky() lanza error",
+      "handling": "try/catch silencioso — CSS background del contenedor provee el fondo blanco"
+    },
+    {
+      "scenario": "map.setProjection() en 'vertical-perspective' causa error en zoom parcel",
+      "handling": "En el zoom handler: verificar map.isStyleLoaded() antes de llamar setProjection()"
+    },
+    {
+      "scenario": "GeoJSON source no está lista al cambiar fecha",
+      "handling": "try/catch ya implementado alrededor de map.getSource + source.setData"
+    }
+  ],
+
+  "testing_strategy": {
+    "manual": [
+      "Abrir http://localhost:3000 y verificar 0 errores de token en consola",
+      "Verificar que el mapa renderiza con efecto pseudo-globe en zoom ~2",
+      "Hacer clic en un campo → confirmar fly animation + parcelas coloreadas",
+      "Cambiar fecha en TimelapseController → confirmar actualización de colores",
+      "Cambiar estilo del mapa → confirmar que las capas de parcelas sobreviven",
+      "Hover sobre parcela → confirmar tooltip con datos del backend"
+    ],
+    "automated": "No aplica para hackathon — testing manual suficiente para el demo"
+  },
+
+  "package_cleanup": {
+    "remove": ["mapbox-gl", "@types/mapbox-gl"],
+    "keep": ["maplibre-gl"],
+    "public_folder_cleanup": "Verificar si /public/mapbox-gl-csp-worker.js puede eliminarse — ya no es necesario"
+  }
+}

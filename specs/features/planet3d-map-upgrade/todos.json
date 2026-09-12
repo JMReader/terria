@@ -1,0 +1,111 @@
+{
+  "$schema": "todos/v1",
+  "feature_id": "planet3d-map-upgrade",
+  "version": "1.0.0",
+  "batches": [
+    {
+      "batch": 1,
+      "description": "Limpieza de dependencias y alias — puede ejecutarse en paralelo",
+      "tasks": [
+        {
+          "id": "T01",
+          "title": "Renombrar alias mapboxgl→maplibregl en Planet3D.tsx (import + todas las referencias)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": [],
+          "outputs": ["Planet3D.tsx con import maplibregl from 'maplibre-gl', sin alias mapboxgl"],
+          "exit_criteria": "0 referencias a 'mapboxgl' en Planet3D.tsx"
+        },
+        {
+          "id": "T02",
+          "title": "Remover mapbox-gl y @types/mapbox-gl del package.json y ejecutar npm install",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": [],
+          "outputs": ["package.json limpio, node_modules sin mapbox-gl"],
+          "exit_criteria": "npm ls mapbox-gl retorna vacío"
+        }
+      ]
+    },
+    {
+      "batch": 2,
+      "description": "Globe pseudo-projection + Sky atmosphere — depende de T01",
+      "tasks": [
+        {
+          "id": "T03",
+          "title": "Agregar projection: { type: 'vertical-perspective' } al constructor del Map",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01"],
+          "outputs": ["Map init con pseudo-globe en zoom global"],
+          "exit_criteria": "Mapa renderiza con efecto visual esférico en zoom < 5"
+        },
+        {
+          "id": "T04",
+          "title": "Reemplazar setFog por setSky con SkySpecification de maplibre-gl",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01"],
+          "outputs": ["applySkyAndAtmosphere() reemplaza applyFogAndAtmosphere()"],
+          "exit_criteria": "Fondo blanco/azul suave visible detrás del globo, sin errores de consola"
+        },
+        {
+          "id": "T05",
+          "title": "Agregar switch de projection en handler zoom (vertical-perspective ↔ mercator)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T03"],
+          "outputs": ["Zoom < 5 → vertical-perspective, zoom >= 5 → mercator"],
+          "exit_criteria": "La transición ocurre sin errores al hacer scroll de zoom"
+        }
+      ]
+    },
+    {
+      "batch": 3,
+      "description": "Ajuste de tipos TypeScript — depende de T01",
+      "tasks": [
+        {
+          "id": "T06",
+          "title": "Actualizar tipos maplibregl.Map, Marker, GeoJSONSource, Popup en Planet3D.tsx",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01"],
+          "outputs": ["0 errores TypeScript en Planet3D.tsx"],
+          "exit_criteria": "npx tsc --noEmit sin errores relacionados al mapa"
+        }
+      ]
+    },
+    {
+      "batch": 4,
+      "description": "Backend status indicator + cleanup — depende de todos",
+      "tasks": [
+        {
+          "id": "T07",
+          "title": "Agregar indicador visual de status del backend en FloatingIslandHeader o mapa",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T06"],
+          "outputs": ["Dot verde = backend connected, gris = offline/mock"],
+          "exit_criteria": "El indicador cambia visualmente según backendStatus state"
+        },
+        {
+          "id": "T08",
+          "title": "Limpiar /public/mapbox-gl-csp-worker.js si existe (ya no necesario)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": ["T02"],
+          "outputs": ["Carpeta public sin archivos residuales de mapbox"],
+          "exit_criteria": "No existe mapbox-gl-csp-worker.js en /public"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "$schema": "functional-spec/v1",
+  "feature_id": "planet3d-map-upgrade",
+  "title": "Planet3D — Mapa Gratuito de Alta Calidad con Datos del Backend TERRIA",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval",
+
+  "problem": {
+    "summary": "Planet3D.tsx usaba mapbox-gl (requiere token de pago). Se migró a maplibre-gl pero la globe projection se perdió y setFog() no funciona igual. El frontend aún consume datos mock en lugar del backend FastAPI real de TERRIA.",
+    "pain_points": [
+      "Error de consola 'A valid Mapbox access token is required' al usar maplibre-gl con alias mapboxgl",
+      "Globe projection 3D (planeta esférico) perdida — era prop mapbox-only",
+      "setFog() y atmosphere con fondo blanco no disponibles en maplibre-gl con la misma API",
+      "Datos de parcelas y timelapse vienen de mocks locales, no del backend real",
+      "Stack duplicado: mapbox-gl Y maplibre-gl en el mismo package.json — hay que elegir una"
+    ]
+  },
+
+  "scope": {
+    "in": [
+      "Selección e integración definitiva de la mejor librería de mapas gratuita para uso agrícola GIS",
+      "Representación de parcelas GeoJSON con colores NDVI/RGB del backend TERRIA",
+      "Overlay de polígonos vectoriales clickeables con popup de información",
+      "Marcadores interactivos para navegar a cada campo",
+      "Fly animation suave al seleccionar un campo",
+      "Filtro de capa activa (NDVI, RGB, clima) sincronizado con TimelapseController",
+      "5 estilos de basemap gratuitos: canvas (gris claro), satélite, calles, OSM, topografía",
+      "Vista 3D con pitch (inclinación de cámara) — perspectiva oblicua del campo",
+      "Sin tokens ni API keys de ningún proveedor de mapas de pago",
+      "Globe/planeta esférico si la librería elegida lo soporta nativamente y sin costo"
+    ],
+    "out": [
+      "Imágenes satelitales propias del backend en el basemap (eso es el TimelapseController)",
+      "Edición de geometrías de parcelas en el mapa",
+      "Geocodificación o búsqueda de direcciones",
+      "WebGPU custom shaders para el mapa base (Field3DIsoViewer es el lugar para eso)",
+      "Autenticación con proveedores de mapas de pago (Mapbox, Google Maps, HERE)"
+    ]
+  },
+
+  "user_journeys": [
+    {
+      "id": "UJ-01",
+      "actor": "Usuario / jurado del hackathon",
+      "journey": "Abrir la app → mapa carga sin errores → ver campos marcados → clic en un campo → mapa vuela hacia él → parcelas coloreadas por NDVI aparecen",
+      "acceptance_criteria": [
+        "El mapa carga sin errores de consola relacionados a tokens o API keys",
+        "Los marcadores de campos son visibles en zoom global",
+        "El clic en un marcador ejecuta fly animation en menos de 2.5s",
+        "Las parcelas GeoJSON aparecen con color NDVI correcto al hacer zoom"
+      ]
+    },
+    {
+      "id": "UJ-02",
+      "actor": "Usuario del hackathon",
+      "journey": "Con campo expandido → mover slider de fecha en TimelapseController → colores de parcelas cambian en el mapa sin reload",
+      "acceptance_criteria": [
+        "Al cambiar fecha, el GeoJSON de parcelas se actualiza sin reload de página",
+        "Los colores reflejan el NDVI o RGB según la capa activa del timelapse",
+        "La actualización ocurre en menos de 200ms"
+      ]
+    },
+    {
+      "id": "UJ-03",
+      "actor": "Usuario del hackathon",
+      "journey": "Cambiar el estilo del mapa → satélite HD → calles → OSM → topografía",
+      "acceptance_criteria": [
+        "El cambio de estilo no destruye las capas vectoriales de parcelas",
+        "Todos los estilos son 100% gratuitos sin token",
+        "La transición de estilo es visual y no produce destello blanco"
+      ]
+    },
+    {
+      "id": "UJ-04",
+      "actor": "Usuario del hackathon",
+      "journey": "Hover sobre una parcela → aparece tooltip con datos del campo",
+      "acceptance_criteria": [
+        "El tooltip aparece dentro de 100ms",
+        "Muestra: nombre del campo, NDVI, hectáreas, cultivo",
+        "Desaparece al alejar el cursor"
+      ]
+    }
+  ],
+
+  "ux_behavior": {
+    "map_initial_view": "Zoom global (~2.2) centrado en Argentina (-33, -64), pitch 0",
+    "field_selected_view": "Zoom 14.8, pitch 45, bearing -15 — perspectiva oblicua 3D del campo",
+    "style_selector": "Floating button en top-right del mapa, despliega menú con 5 estilos",
+    "parcels_interaction": {
+      "portfolio_fields": "Clickeables, cursor pointer, popup detallado azul/verde con datos TERRIA",
+      "neighbor_cadastre": "Solo visual, no clickeables, popup informativo gris"
+    },
+    "globe_mode": "Si la librería soporta globe projection nativo → activarlo en zoom < 5. Fallback aceptado: Mercator con pitch 0 en zoom global.",
+    "atmosphere_fog": "Fondo blanco puro detrás del globo en zoom global. Si no está disponible nativo → implementar con CSS background del contenedor.",
+    "no_token_errors": "Cero errores en consola del navegador relacionados a API keys o tokens"
+  },
+
+  "business_rules": [
+    "BR-01: Ninguna librería de mapas puede requerir API token de pago",
+    "BR-02: Los datos de parcelas deben venir del backend TERRIA via generateParcelsGeoJson",
+    "BR-03: El mapa debe ser compatible con Next.js con ssr:false (dynamic import)",
+    "BR-04: La librería final debe tener release activo en los últimos 6 meses",
+    "BR-05: Debe soportar: GeoJSON source, fill/line layers, markers, popups, flyTo",
+    "BR-06: Bundle size del mapa ≤ 800KB gzipped",
+    "BR-07: vgpu/WebGPU puede usarse para layers custom (NDVI heatmap) sobre el mapa base, no como reemplazo del mapa base"
+  ],
+
+  "map_library_evaluation": {
+    "note": "Análisis comparativo de candidatos. La elección arquitectural definitiva va en technical-spec.json.",
+    "candidates": [
+      {
+        "name": "MapLibre GL JS v4 / v5",
+        "token_required": false,
+        "globe_support": "Sí en v4+ (terrain globe experimental), v5 LTS tiene globe estable",
+        "fog_atmosphere": "Sí — setFog() nativo en v4+",
+        "geojson_layers": "Sí, completo",
+        "fly_animation": "Sí",
+        "bundle_size_gzipped": "~550KB",
+        "api_compat_with_current_code": "Alta — fork directo de Mapbox GL JS v1, casi 1:1",
+        "notes": "La versión instalada es v6.9.0. IMPORTANTE: verificar si maplibre-gl v6 es un fork distinto al oficial maplibre.org (que va por v4.x/v5.x). Si v6.9 soporta globe + setFog, es la opción ideal sin cambios.",
+        "verdict": "CANDIDATO PRINCIPAL si v6.9 tiene globe y setFog. Sino: downgrade a v4.7 LTS."
+      },
+      {
+        "name": "Deck.gl + MapLibre GL basemap",
+        "token_required": false,
+        "globe_support": "Sí — GlobeView nativo, WebGL2/WebGPU",
+        "fog_atmosphere": "Manual via CSS / shader",
+        "geojson_layers": "Sí — GeoJsonLayer con coloring expressions",
+        "fly_animation": "Sí — via viewState transitions",
+        "bundle_size_gzipped": "~900KB+",
+        "api_compat_with_current_code": "Baja — API React declarativa completamente distinta",
+        "notes": "Muy potente para viz agrícola avanzada (heatmaps, scatter, arc layers). Integra con vgpu para WebGPU layers. Curva de aprendizaje alta. Excede scope del hackathon.",
+        "verdict": "DESCARTADO para este sprint. Buena opción futura para analytics layer."
+      },
+      {
+        "name": "Leaflet.js v1/v2",
+        "token_required": false,
+        "globe_support": "No",
+        "fog_atmosphere": "No",
+        "geojson_layers": "Básico — sin expresiones de filtro ni vector tiles",
+        "fly_animation": "Básica — sin pitch 3D",
+        "bundle_size_gzipped": "~140KB",
+        "api_compat_with_current_code": "Ninguna — API completamente distinta",
+        "notes": "Muy liviano pero sin 3D pitch, sin estilos vectoriales, sin Mapbox Style Spec v8.",
+        "verdict": "DESCARTADO — no cumple BR-05 (pitch 3D, expresiones de filtro GeoJSON)"
+      },
+      {
+        "name": "MapLibre GL JS v4.7 (versión LTS estable oficial maplibre.org)",
+        "token_required": false,
+        "globe_support": "Sí — con prop projection:'globe'",
+        "fog_atmosphere": "Sí — setFog() idéntico a Mapbox GL JS",
+        "geojson_layers": "Sí, completo",
+        "fly_animation": "Sí",
+        "bundle_size_gzipped": "~540KB",
+        "api_compat_with_current_code": "Muy alta — misma API que el código actual",
+        "notes": "Es la versión LTS del fork oficial. Soporta globe + setFog + todas las features del código actual. Solo hay que actualizar el import y verificar que la versión v6.9 instalada sea esta (maplibre.org) y no otro fork.",
+        "verdict": "CANDIDATO PRINCIPAL ALTERNATIVO si v6.9 no tiene globe/setFog"
+      }
+    ],
+    "recommendation_preview": "MapLibre GL JS (el fork oficial de maplibre.org, v4.7 o v6.9 según cuál sea el correcto) es la elección óptima: máxima compatibilidad con el código existente, globe projection nativa, setFog nativo, 100% gratuita, activamente mantenida. Si se quiere agregar una capa NDVI WebGPU custom en el futuro, se puede componer vgpu sobre el mapa base sin reemplazarlo."
+  }
+}

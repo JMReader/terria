@@ -86,7 +86,7 @@ export default function FieldCard({
         </div>
       </div>
 
-      {/* Key Agronomic Metrics Box */}
+      {/* Agronomic Quick Glance */}
       <div className="grid grid-cols-3 gap-2 my-3 rounded-xl bg-gray-50 p-2.5 border border-gray-100">
         <div>
           <span className="text-[10px] text-gray-400 block uppercase font-medium">Superficie</span>
@@ -95,12 +95,12 @@ export default function FieldCard({
         <div>
           <span className="text-[10px] text-gray-400 block uppercase font-medium">Cultivo</span>
           <span className="text-xs font-bold text-gray-800 truncate block">
-            {field.primaryCrop.split(" ")[0]}
+            {(field.primaryCrop || field.crop || "Cultivo").split(" ")[0]}
           </span>
         </div>
         <div>
           <span className="text-[10px] text-gray-400 block uppercase font-medium">Alquiler</span>
-          <span className="text-xs font-bold text-blue-600">{field.rentQqSoja} qq/ha</span>
+          <span className="text-xs font-bold text-blue-600">{field.rentQqSoja != null ? `${field.rentQqSoja} qq/ha` : "N/D"}</span>
         </div>
       </div>
 
@@ -118,14 +118,14 @@ export default function FieldCard({
         </div>
 
         <div className="pt-1 flex items-center justify-between text-xs text-gray-600">
-          <span className="truncate max-w-[210px]">{field.soilSeries}</span>
-          <span className="font-semibold text-gray-900">${field.rentUsdHa} USD/ha</span>
+          <span className="truncate max-w-[210px]">{field.soilSeries || field.soilType || "Suelo agrícola"}</span>
+          <span className="font-semibold text-gray-900">{field.rentUsdHa != null ? `$${field.rentUsdHa} USD/ha` : "A consultar"}</span>
         </div>
       </div>
 
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
-        {field.tags.map((tag, idx) => (
+        {(field.tags || ["Lote"]).map((tag, idx) => (
           <span
             key={idx}
             className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600"

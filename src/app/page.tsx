@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { FIELDS_DATA, FieldItem } from "@/data/fieldsData";
 import FloatingIslandHeader from "@/components/FloatingIslandHeader";
@@ -13,8 +13,11 @@ import { DEMO_TIMELAPSE_MANIFEST } from "@/data/timelapseMockData";
 import { Satellite } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { TimelapseManifest } from "@/types/terria";
 
 gsap.registerPlugin(useGSAP);
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 // Dynamic import for 3D Three.js canvas to avoid SSR issues
 const Planet3D = dynamic(() => import("@/components/Planet3D"), {
@@ -46,9 +49,75 @@ export default function Home() {
   const [isFieldExpanded, setIsFieldExpanded] = useState(false);
   const [isFieldIsolated3D, setIsFieldIsolated3D] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [backendFields, setBackendFields] = useState<FieldItem[]>(FIELDS_DATA);
+  const [timelapseManifest, setTimelapseManifest] = useState<TimelapseManifest>(DEMO_TIMELAPSE_MANIFEST);
+  const [backendStatus, setBackendStatus] = useState<"loading" | "connected" | "offline">("loading");
+
+  // Fetch fields and timelapse data from real backend on mount
+  useEffect(() => {
+    const fetchBackendData = async () => {
+      try {
+        // 1. Check health
+        const health = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(3000) });
+        if (!health.ok) throw new Error("backend offline");
+
+        setBackendStatus("connected");
+
+        // 2. Fetch fields list
+        const fieldsRes = await fetch(`${API_URL}/v1/fields`);
+        if (fieldsRes.ok) {
+          const fieldsData = await fieldsRes.json();
+          // Map backend fields to FieldItem shape (fill optional visual props from mock fallback)
+          if (Array.isArray(fieldsData) && fieldsData.length > 0) {
+            const mapped: FieldItem[] = fieldsData.map((f: any, idx: number) => ({
+              id: f.id,
+              name: f.name,
+              lat: f.centroid_lat ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.lat ?? -33.12,
+              lng: f.centroid_lng ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.lng ?? -64.22,
+              hectares: f.area_hectares ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.hectares ?? 100,
+              crop: f.primary_crop ?? FIELDS_DATA[idx % FIELDS_DATA.length]?.crop ?? "Maíz",
+              ndvi: FIELDS_DATA[idx % FIELDS_DATA.length]?.ndvi ?? 0.55,
+              aptitude: FIELDS_DATA[idx % FIELDS_DATA.length]?.aptitude ?? "Alta",
+              soilType: FIELDS_DATA[idx % FIELDS_DATA.length]?.soilType ?? "Franco arcilloso",
+              status: f.is_published ? "published" : "draft",
+              publicSlug: f.public_slug,
+            }));
+            setBackendFields(mapped);
+            setSelectedField(mapped[0]);
+
+            // 3. Fetch timelapses for the first field
+            const firstFieldId = mapped[0].id;
+            const tlRes = await fetch(`${API_URL}/v1/fields/${firstFieldId}/timelapses`);
+            if (tlRes.ok) {
+              const datasets = await tlRes.json();
+              // Pick first ready/partial dataset
+              const readyDataset = datasets.find(
+                (d: any) => d.status === "ready" || d.status === "partial"
+              );
+              if (readyDataset) {
+                const manifestRes = await fetch(
+                  `${API_URL}/v1/fields/${firstFieldId}/timelapses/${readyDataset.id}`
+                );
+                if (manifestRes.ok) {
+                  const manifest = await manifestRes.json();
+                  setTimelapseManifest(manifest);
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Backend offline — keep mock data, inform user
+        setBackendStatus("offline");
+        console.info("[TERRIA] Backend not reachable — using demo mock data");
+      }
+    };
+
+    fetchBackendData();
+  }, []);
 
   // Synchronized timelapse engine across 3D and detail views
-  const timelapse = useFieldTimelapse({ manifest: DEMO_TIMELAPSE_MANIFEST });
+  const timelapse = useFieldTimelapse({ manifest: timelapseManifest });
 
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const mapViewportRef = useRef<HTMLDivElement>(null);
@@ -114,7 +183,8 @@ export default function Home() {
       <FloatingIslandHeader
         onSearchChange={(query) => setSearchQuery(query)}
         selectedField={selectedField}
-        totalFields={FIELDS_DATA.length}
+        totalFields={backendFields.length}
+        backendStatus={backendStatus}
       />
 
       {/* Main Two-Column Layout: Left Map/Planet + Right Field Cards */}
@@ -184,6 +254,7 @@ export default function Home() {
               selectedField={selectedField}
               onSelectField={handleSelectField}
               filterQuery={searchQuery}
+              fields={backendFields}
               className="h-full min-h-0"
             />
           )}

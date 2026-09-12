@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Search, X, Mic, Command } from "lucide-react";
@@ -14,12 +14,14 @@ interface FloatingIslandHeaderProps {
   selectedField?: FieldItem;
   totalFields?: number;
   className?: string;
+  backendStatus?: "loading" | "connected" | "offline";
 }
 
 export default function FloatingIslandHeader({
   onSearchChange,
   onRegisterField,
   className = "",
+  backendStatus = "loading",
 }: FloatingIslandHeaderProps) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(true);
@@ -181,10 +183,40 @@ export default function FloatingIslandHeader({
       >
         <div className="relative rounded-2xl sm:rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.12),0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-white/80 p-2 sm:px-4 sm:py-2 transition-shadow">
           <div className="flex items-center justify-between gap-3 sm:gap-4">
-            {/* Left: Solo el nombre de la marca */}
-            <div className="flex items-center shrink-0 pl-1 sm:pl-2">
+            {/* Left: Brand + Backend Status */}
+            <div className="flex items-center shrink-0 pl-1 sm:pl-2 gap-2">
               <span className="text-sm font-black tracking-widest text-slate-900 font-sans uppercase">
                 TERRA
+              </span>
+              {/* Backend connectivity indicator */}
+              <span
+                title={
+                  backendStatus === "connected"
+                    ? "Backend TERRIA conectado"
+                    : backendStatus === "loading"
+                    ? "Conectando al backend..."
+                    : "Backend offline — usando datos demo"
+                }
+                className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${
+                  backendStatus === "connected"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : backendStatus === "loading"
+                    ? "bg-amber-50 text-amber-600"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    backendStatus === "connected"
+                      ? "bg-emerald-500 animate-pulse"
+                      : backendStatus === "loading"
+                      ? "bg-amber-400 animate-pulse"
+                      : "bg-slate-400"
+                  }`}
+                />
+                <span className="hidden sm:inline">
+                  {backendStatus === "connected" ? "API" : backendStatus === "loading" ? "..." : "demo"}
+                </span>
               </span>
             </div>
 

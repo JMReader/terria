@@ -1,25 +1,33 @@
 export interface FieldItem {
   id: string;
-  code: string;
   name: string;
-  locality: string;
-  province: string;
-  coordinates: string;
   lat: number;
   lng: number;
   hectares: number;
-  primaryCrop: string;
-  secondaryCrop?: string;
-  suitabilityScore: number;
-  soilSeries: string;
-  rentUsdHa: number;
-  rentQqSoja: number;
   ndvi: number;
-  waterTable: string;
-  irrigation: boolean;
-  status: "disponible" | "en_negociacion" | "destacado";
-  tags: string[];
-  description: string;
+
+  // Mock-data fields (optional — not always available from backend)
+  code?: string;
+  locality?: string;
+  province?: string;
+  coordinates?: string;
+  primaryCrop?: string;
+  secondaryCrop?: string;
+  suitabilityScore?: number;
+  soilSeries?: string;
+  rentUsdHa?: number;
+  rentQqSoja?: number;
+  waterTable?: string;
+  irrigation?: boolean;
+  tags?: string[];
+  description?: string;
+  status?: "disponible" | "en_negociacion" | "destacado" | "published" | "draft";
+
+  // Backend-sourced optional fields
+  crop?: string;         // alias for primaryCrop from backend
+  soilType?: string;     // alias for soilSeries from backend
+  aptitude?: string;     // soil aptitude label
+  publicSlug?: string;   // TERRIA public URL slug
 }
 
 export const FIELDS_DATA: FieldItem[] = [

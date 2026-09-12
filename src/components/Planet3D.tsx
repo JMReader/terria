@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+// Use MapLibre GL — 100% open source, no API token required, full Mapbox GL JS compatibility
+import * as maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { FIELDS_DATA, FieldItem } from "@/data/fieldsData";
 import { FIELD_SECTORS_DATA, NEIGHBOR_CADASTRE_PARCELS } from "@/data/sectorsData";
 import { useFieldTimelapse } from "@/hooks/useFieldTimelapse";
@@ -19,12 +20,6 @@ import {
   Satellite,
   Compass,
 } from "lucide-react";
-
-// Configure Mapbox CSP Web Worker locally from /public to eliminate all worker errors
-if (typeof window !== "undefined") {
-  // @ts-ignore
-  mapboxgl.workerUrl = "/mapbox-gl-csp-worker.js";
-}
 
 export interface Planet3DProps {
   embedded?: boolean;
@@ -217,8 +212,8 @@ export default function Planet3D({
   timelapse,
 }: Planet3DProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
 
   const [currentStyleKey, setCurrentStyleKey] = useState<FreeMapStyleKey>("canvas");
   const [zoomLevelName, setZoomLevelName] = useState<"global" | "regional" | "parcel">("global");
@@ -238,7 +233,7 @@ export default function Planet3D({
     const map = mapRef.current;
     if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
     try {
-      const source = map.getSource("field-parcels") as mapboxgl.GeoJSONSource | undefined;
+      const source = map.getSource("field-parcels") as maplibregl.GeoJSONSource | undefined;
       if (source) {
         const data = buildParcelsGeoJson();
         source.setData(data as any);
@@ -250,7 +245,7 @@ export default function Planet3D({
 
   // Add parcels layers on map style load
   const addParcelLayers = useCallback(
-    (map: mapboxgl.Map) => {
+    (map: maplibregl.Map) => {
       if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
         if (map.getSource("field-parcels")) return;
@@ -376,12 +371,9 @@ export default function Planet3D({
     [buildParcelsGeoJson, selectedField]
   );
 
-  // Initialize Mapbox GL JS with Globe Projection
+  // Initialize MapLibre GL (no token needed — 100% free!)
   useEffect(() => {
     if (!mapContainerRef.current) return;
-
-    mapboxgl.accessToken =
-      process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
     const initialCenter: [number, number] = selectedField
       ? [selectedField.lng, selectedField.lat]
@@ -392,17 +384,16 @@ export default function Planet3D({
 
     const styleToUse = OPEN_MAP_STYLES[currentStyleKey] as any;
 
-    const map = new mapboxgl.Map({
+    const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: styleToUse,
-      projection: "globe", // 3D Globe View!
       center: initialCenter,
       zoom: initialZoom,
       pitch: initialPitch,
-      maxZoom: 16.8, // Clamps zoom to guarantee no 'Map data not yet available' errors
+      maxZoom: 16.8,
       minZoom: 1.5,
       attributionControl: false,
-    });
+    } as maplibregl.MapOptions);
 
     mapRef.current = map;
 
@@ -416,37 +407,42 @@ export default function Planet3D({
     });
     ro.observe(mapContainerRef.current);
 
-    // Apply clean white atmosphere & fog on load
-    const applyFogAndAtmosphere = () => {
+    // Apply sky atmosphere + globe projection (MapLibre native)
+    const applySkyAndAtmosphere = () => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
-        map.setFog({
-          color: "rgb(255, 255, 255)", // Atmosphere bottom
-          "high-color": "rgb(240, 246, 255)", // Atmosphere upper
-          "horizon-blend": 0.02, // Atmosphere thickness
-          "space-color": "rgb(255, 255, 255)", // Pure white background!
-          "star-intensity": 0.0,
-        });
+        // Set vertical-perspective projection — pseudo-globe visual effect
+        (map as any).setProjection({ type: "vertical-perspective" });
+      } catch { /* noop — projection API not ready yet */ }
+      try {
+        // setSky gives white/blue atmosphere halo around the globe
+        map.setSky({
+          "sky-color": "#ffffff",
+          "sky-horizon-blend": 0.5,
+          "horizon-color": "#dbeafe",
+          "horizon-fog-blend": 0.05,
+          "atmosphere-blend": 0.6,
+        } as any);
       } catch {
-        // Fog not supported or error
+        // setSky not supported on this style — CSS fallback handles background color
       }
       addParcelLayers(map);
     };
 
-    map.on("style.load", applyFogAndAtmosphere);
+    map.on("style.load", applySkyAndAtmosphere);
     if (map.isStyleLoaded && map.isStyleLoaded()) {
-      applyFogAndAtmosphere();
+      applySkyAndAtmosphere();
     }
 
     // Floating tooltip for OneSoil parcel inspector
-    const hoverPopup = new mapboxgl.Popup({
+    const hoverPopup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
       offset: 12,
     });
 
     // Interactive click: ONLY trigger selection on our loaded portfolio fields
-    map.on("click", (e) => {
+    map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
         if (!map.getLayer("field-parcels-fill")) return;
@@ -467,7 +463,7 @@ export default function Planet3D({
     });
 
     // Mousemove: OneSoil tooltip & pointer cursor ONLY on portfolio fields
-    map.on("mousemove", (e) => {
+    map.on("mousemove", (e: maplibregl.MapMouseEvent) => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
         const activeLayer = map.getLayer("field-parcels-fill");
@@ -536,16 +532,22 @@ export default function Planet3D({
     hoverPopup.remove();
   });
 
-  // Track Zoom level dynamically
+  // Track Zoom level dynamically + switch projection for globe/map feel
   map.on("zoom", () => {
     const z = map.getZoom();
     setCurrentZoom(z);
     if (z < 5.0) {
       setZoomLevelName("global");
+      // Globe-like perspective in world view
+      try { map.setProjection({ type: "vertical-perspective" } as any); } catch { /* noop */ }
     } else if (z < 11.5) {
       setZoomLevelName("regional");
+      // Flat Mercator for regional accuracy
+      try { map.setProjection({ type: "mercator" } as any); } catch { /* noop */ }
     } else {
       setZoomLevelName("parcel");
+      // Mercator for precise parcel geometry at field level
+      try { map.setProjection({ type: "mercator" } as any); } catch { /* noop */ }
     }
   });
 
@@ -578,7 +580,7 @@ export default function Planet3D({
       });
     });
 
-    const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+    const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
       .setLngLat([field.lng, field.lat])
       .addTo(map);
 

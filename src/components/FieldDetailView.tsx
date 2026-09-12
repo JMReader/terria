@@ -110,7 +110,7 @@ export default function FieldDetailView({
             )}
 
             <span className="rounded-lg bg-gray-100 border border-gray-200 px-2 py-1 text-[10px] font-mono font-bold text-gray-600">
-              {field.code}
+              {field.code || "CAMPO"}
             </span>
 
             <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-1 text-[10px] font-mono font-bold text-emerald-800 uppercase">
@@ -124,7 +124,7 @@ export default function FieldDetailView({
             {field.name}
           </h1>
           <p className="text-xs font-mono text-gray-400 mt-0.5">
-            {field.locality}, {field.province} • {field.coordinates}
+            {field.locality || "Argentina"}{field.province ? `, ${field.province}` : ""} {field.coordinates ? `• ${field.coordinates}` : ""}
           </p>
         </div>
 
@@ -175,14 +175,14 @@ export default function FieldDetailView({
                   label="Superficie"
                   value={field.hectares}
                   unit="ha"
-                  subtext={field.primaryCrop}
+                  subtext={field.primaryCrop || field.crop || "Cultivo activo"}
                   highlight="neutral"
                 />
                 <MetricStatBox
                   label="Aptitud"
-                  value={`${field.suitabilityScore}%`}
+                  value={field.suitabilityScore != null ? `${field.suitabilityScore}%` : (field.aptitude || "Alta")}
                   subtext="Clase I-II Agrícola"
-                  progressPercent={field.suitabilityScore}
+                  progressPercent={field.suitabilityScore ?? 90}
                   highlight="emerald"
                 />
                 <MetricStatBox
@@ -194,9 +194,9 @@ export default function FieldDetailView({
                 />
                 <MetricStatBox
                   label="Alquiler"
-                  value={field.rentQqSoja}
+                  value={field.rentQqSoja ?? "-"}
                   unit="qq/ha"
-                  subtext={`$${field.rentUsdHa} USD/ha`}
+                  subtext={field.rentUsdHa != null ? `$${field.rentUsdHa} USD/ha` : "A consultar"}
                   highlight="blue"
                 />
               </div>
@@ -208,13 +208,13 @@ export default function FieldDetailView({
                     Suelo & Napa (INTA)
                   </span>
                   <span className="text-[10px] font-mono text-gray-500">
-                    {field.soilSeries}
+                    {field.soilSeries || field.soilType || "Suelo agrícola"}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 text-xs font-mono">
                   <div className="rounded-xl bg-gray-50 p-2.5 border border-gray-100">
                     <span className="text-[9px] text-gray-400 uppercase block">Napa Freática</span>
-                    <span className="font-bold text-gray-800">{field.waterTable}</span>
+                    <span className="font-bold text-gray-800">{field.waterTable || "Cota normal"}</span>
                   </div>
                   <div className="rounded-xl bg-gray-50 p-2.5 border border-gray-100">
                     <span className="text-[9px] text-gray-400 uppercase block">Régimen Hídrico</span>
