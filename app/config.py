@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     solana_issuer_secret_key: str | None = None
     cert_schema_version: str = "terria.cert/2"
     cert_algorithm_version: str = "jcs+sha256/1"
+    cert_storage_bucket: str = "cert-payloads"
 
     @property
     def use_devnet_anchor(self) -> bool:

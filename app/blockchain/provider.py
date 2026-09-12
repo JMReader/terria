@@ -132,7 +132,10 @@ class DevnetAnchorProvider:
                 last_error = exc
         if response is None:
             raise last_error or RuntimeError("could not send the anchor transaction")
-        client.confirm_transaction(response.value, commitment=Confirmed)
+        try:
+            client.confirm_transaction(response.value, commitment=Confirmed)
+        except Exception:  # noqa: BLE001 - already submitted; verify resolves confirmation later
+            pass
 
         slot: int | None = None
         block_time: datetime | None = None

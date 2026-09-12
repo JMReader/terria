@@ -9,7 +9,7 @@ from app.blockchain.provider import explorer_url, get_anchor_provider
 from app.blockchain.repository import (
     AnchorRecord,
     CertificationRecord,
-    certification_repository,
+    get_certification_repository,
 )
 from app.blockchain.schemas import (
     AnchorResponse,
@@ -21,6 +21,11 @@ from app.config import settings
 from app.schemas import FieldResponse
 from app.timelapse.repository import timelapse_repository
 from app.timelapse.schemas import TimelapseDatasetSummary
+
+
+def _repo():
+    """SQLite local o Supabase segun la configuracion activa."""
+    return get_certification_repository()
 
 
 def _anchor_response(anchor: AnchorRecord | None) -> AnchorResponse | None:
@@ -39,7 +44,7 @@ def _anchor_response(anchor: AnchorRecord | None) -> AnchorResponse | None:
 
 
 def build_certification_response(record: CertificationRecord) -> CertificationResponse:
-    anchor = certification_repository.get_anchor(record.id)
+    anchor = _repo().get_anchor(record.id)
     return CertificationResponse(
         id=record.id,
         field_id=record.field_id,
@@ -67,8 +72,8 @@ def issue_certification(
     anchor: bool = True,
 ) -> CertificationResponse:
     cert_uid = str(uuid4())
-    version = certification_repository.next_version(field.id)
-    prev_hash = certification_repository.previous_content_hash(field.id)
+    version = _repo().next_version(field.id)
+    prev_hash = _repo().previous_content_hash(field.id)
 
     manifests = [
         manifest
@@ -90,7 +95,7 @@ def issue_certification(
     payload = canonical_bytes(snapshot)
     content_hash_hex = sha256_hex(payload)
 
-    record = certification_repository.create_certification(
+    record = _repo().create_certification(
         field_id=field.id,
         version=version,
         cert_uid=cert_uid,
@@ -103,7 +108,7 @@ def issue_certification(
         prev_content_hash=prev_hash,
         issued_at=None,
     )
-    certification_repository.save_payload(record.id, payload, content_hash_hex)
+    _repo().save_payload(record.id, payload, content_hash_hex)
 
     if not anchor:
         return build_certification_response(record)
@@ -114,7 +119,7 @@ def issue_certification(
         result = provider.anchor(memo)
     except Exception as exc:  # noqa: BLE001 - anchoring must never lose the snapshot
         message = str(exc)[:500]
-        certification_repository.save_anchor(
+        _repo().save_anchor(
             certification_id=record.id,
             provider=provider.name,
             cluster=provider.cluster,
@@ -126,11 +131,11 @@ def issue_certification(
             attempts=1,
             error=message,
         )
-        certification_repository.enqueue_anchor_job(record.id, message)
-        record = certification_repository.set_status(record.id, "pending_anchor")
+        _repo().enqueue_anchor_job(record.id, message)
+        record = _repo().set_status(record.id, "pending_anchor")
         return build_certification_response(record)
 
-    certification_repository.save_anchor(
+    _repo().save_anchor(
         certification_id=record.id,
         provider=result.provider,
         cluster=result.cluster,
@@ -142,20 +147,20 @@ def issue_certification(
         attempts=1,
         error=None,
     )
-    record = certification_repository.set_status(
+    record = _repo().set_status(
         record.id, "anchored", issued_at=datetime.now(timezone.utc)
     )
     return build_certification_response(record)
 
 
 def verify_certification(cert_uid: str) -> CertificationVerifyResponse | None:
-    record = certification_repository.get_by_cert_uid(cert_uid)
+    record = _repo().get_by_cert_uid(cert_uid)
     if record is None:
         return None
 
-    payload = certification_repository.get_payload(record.id)
+    payload = _repo().get_payload(record.id)
     recomputed = sha256_hex(payload) if payload is not None else ""
-    anchor = certification_repository.get_anchor(record.id)
+    anchor = _repo().get_anchor(record.id)
 
     status: str = "pending"
     on_chain_memo: str | None = None

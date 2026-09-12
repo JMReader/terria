@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 
-from app.blockchain.repository import certification_repository
+from app.blockchain.repository import get_certification_repository
 from app.blockchain.schemas import (
     CertificationCreate,
     CertificationResponse,
@@ -106,7 +106,7 @@ def list_certifications(field_id: UUID, request: Request) -> list[CertificationR
         raise _field_not_found(request) from None
     return [
         build_certification_response(record)
-        for record in certification_repository.list_for_field(field_id)
+        for record in get_certification_repository().list_for_field(field_id)
     ]
 
 
@@ -117,7 +117,7 @@ def list_certifications(field_id: UUID, request: Request) -> list[CertificationR
     tags=["Certifications"],
 )
 def get_certification(certification_id: UUID, request: Request) -> CertificationResponse:
-    record = certification_repository.get(certification_id)
+    record = get_certification_repository().get(certification_id)
     if record is None:
         raise _certification_not_found(request)
     return build_certification_response(record)
