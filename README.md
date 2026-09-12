@@ -9,6 +9,22 @@ uv sync --all-groups
 uv run fastapi dev app/main.py
 ```
 
+### Persistencia
+
+- **`DATABASE_URL` configurada** → Supabase Postgres (pooler transaccional `:6543`, `NullPool` + `prepare_threshold=None`). La API escribe en `core.fields`, `timelapse.*` y `ops.jobs`; área/centroide los calcula PostGIS.
+- **Sin `DATABASE_URL`** → SQLite local en `TERRIA_DB_PATH` (`data/terria.db`), para desarrollo y tests.
+
+El `owner_id` requerido por `core.fields` se toma de `TERRIA_DEFAULT_OWNER_ID`; si falta, el backend provisiona `TERRIA_SYSTEM_EMAIL` en Supabase Auth vía Admin API (`SUPABASE_SERVICE_ROLE_KEY`).
+
+### Migraciones
+
+El DDL canónico vive en `supabase/migrations/`; Alembic lo ejecuta versionado:
+
+```bash
+uv run alembic upgrade head   # aplica pendientes (MIGRATION_DATABASE_URL > DATABASE_DIRECT_URL > DATABASE_URL)
+uv run alembic stamp 0001     # si la base ya tiene el schema inicial aplicado
+```
+
 La documentación interactiva queda en `http://127.0.0.1:8000/docs`; el contrato estático se genera con:
 
 ```bash

@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 
 from app.config import settings
-from app.store import FieldNotFound, SQLiteFieldStore
+from app.store import FieldNotFound, get_field_store
 from app.timelapse.repository import timelapse_repository
 from app.timelapse.schemas import (
     PublicTimelapseManifest,
@@ -21,7 +21,7 @@ from app.timelapse.schemas import (
 from app.timelapse.selector import compute_timeline_state
 
 router = APIRouter()
-field_store = SQLiteFieldStore()
+field_store = get_field_store()
 
 
 def _timelapse_not_found(request: Request, message: str = "Timelapse dataset not found") -> HTTPException:

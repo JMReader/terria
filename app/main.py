@@ -14,7 +14,9 @@ from app.schemas import (
     PublicFieldResponse,
     PublishResponse,
 )
-from app.store import FieldNotFound, SQLiteFieldStore
+from app.config import settings
+from app.db import db_ping
+from app.store import FieldNotFound, get_field_store
 from app.timelapse.router import router as timelapse_router
 
 app = FastAPI(
@@ -37,7 +39,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
-store = SQLiteFieldStore()
+store = get_field_store()
 app.include_router(timelapse_router)
 
 DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
@@ -63,7 +65,12 @@ def not_found(request: Request) -> HTTPException:
 
 @app.get("/health", tags=["Health"])
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    backend = "supabase" if settings.use_supabase else "sqlite"
+    reachable = db_ping() if settings.use_supabase else True
+    return {
+        "status": "ok" if reachable else "degraded",
+        "database": backend if reachable else f"{backend}:unreachable",
+    }
 
 
 @app.post("/v1/fields", response_model=FieldResponse, status_code=status.HTTP_201_CREATED, tags=["Fields"])
