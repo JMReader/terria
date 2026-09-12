@@ -303,7 +303,7 @@ export default function Home() {
               <Field3DIsoViewer
                 field={selectedField}
                 onBackToMap={() => setIsFieldIsolated3D(false)}
-                className="h-full w-full"
+                className="h-full w-full animate-in fade-in duration-300"
               />
             ) : (
               <Planet3D

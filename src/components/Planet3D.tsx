@@ -415,6 +415,47 @@ export default function Planet3D({
     }
   }, [buildParcelsGeoJson, addParcelLayers]);
 
+  const isTransitioningRef = useRef(false);
+
+  const triggerZoomAnd3D = useCallback(
+    (field: FieldItem) => {
+      if (!mapRef.current || isTransitioningRef.current) return;
+      isTransitioningRef.current = true;
+
+      if (onSelectField) {
+        onSelectField(field);
+      }
+
+      const map = mapRef.current;
+
+      // Smooth cinematic camera swoop down to parcel level
+      map.flyTo({
+        center: [field.lng, field.lat],
+        zoom: 15.6,
+        pitch: 54,
+        bearing: -12,
+        duration: 1600,
+        essential: true,
+      });
+
+      // Right as camera reaches ground level, transition to 3D isolated representation
+      const timer = setTimeout(() => {
+        if (onIsolateField) {
+          onIsolateField(field);
+        }
+        isTransitioningRef.current = false;
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    },
+    [onSelectField, onIsolateField]
+  );
+
+  const triggerZoomAnd3DRef = useRef(triggerZoomAnd3D);
+  useEffect(() => {
+    triggerZoomAnd3DRef.current = triggerZoomAnd3D;
+  }, [triggerZoomAnd3D]);
+
   // Initialize MapLibre GL (no token needed — 100% free!)
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -478,13 +519,6 @@ export default function Planet3D({
       applySkyAndAtmosphere();
     }
 
-    // Floating tooltip for OneSoil parcel inspector
-    const hoverPopup = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      offset: 12,
-    });
-
     // Interactive click: ONLY trigger selection on our loaded portfolio fields
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
@@ -501,20 +535,7 @@ export default function Planet3D({
             const fieldId = features[0].properties?.fieldId;
             const match = fieldsList.find((f) => f.id === fieldId);
             if (match) {
-              if (onSelectField) onSelectField(match);
-              map.flyTo({
-                center: [match.lng, match.lat],
-                zoom: 15.2,
-                pitch: 48,
-                bearing: -10,
-                duration: 1000,
-                essential: true,
-              });
-              if (onIsolateField) {
-                setTimeout(() => {
-                  onIsolateField(match);
-                }, 950);
-              }
+              triggerZoomAnd3DRef.current(match);
             }
           }
         }
@@ -523,7 +544,7 @@ export default function Planet3D({
       }
     });
 
-    // Mousemove: OneSoil tooltip & pointer cursor ONLY on portfolio fields
+    // Mousemove: stable pointer cursor on portfolio fields without moving popups (no jitter!)
     map.on("mousemove", (e: maplibregl.MapMouseEvent) => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
@@ -531,74 +552,30 @@ export default function Planet3D({
         const cadastreLayer = map.getLayer("cadastre-neighbors-fill");
         if (!activeLayer && !cadastreLayer) return;
 
-      const layersToQuery: string[] = [];
-      if (activeLayer) layersToQuery.push("field-parcels-fill");
-      if (map.getLayer("field-perimeter-fill")) layersToQuery.push("field-perimeter-fill");
-      if (map.getLayer("field-parcels-labels")) layersToQuery.push("field-parcels-labels");
-      if (cadastreLayer) layersToQuery.push("cadastre-neighbors-fill");
+        const layersToQuery: string[] = [];
+        if (activeLayer) layersToQuery.push("field-parcels-fill");
+        if (map.getLayer("field-perimeter-fill")) layersToQuery.push("field-perimeter-fill");
+        if (map.getLayer("field-parcels-labels")) layersToQuery.push("field-parcels-labels");
+        if (cadastreLayer) layersToQuery.push("cadastre-neighbors-fill");
 
-      const features = map.queryRenderedFeatures(e.point, { layers: layersToQuery });
+        const features = map.queryRenderedFeatures(e.point, { layers: layersToQuery });
 
-      if (features && features[0]) {
-        const f = features[0];
-        const props = f.properties || {};
-        const isPortfolio = props.isPortfolio === true || props.isPortfolio === "true";
-
-        map.getCanvas().style.cursor = isPortfolio ? "pointer" : "default";
-
-        const html = isPortfolio
-          ? `
-            <div style="padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.4; max-width: 230px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #4a6b46;"></span>
-                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #4a6b46; letter-spacing: 0.05em;">Lote Delimitado</span>
-                </div>
-                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 800; color: #ffffff; background: ${props.color || '#4a6b46'}; padding: 1px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">NDVI ${props.currentNdvi}</span>` : ''}
-              </div>
-              <div style="font-weight: 800; color: #1c3a2e; font-size: 12px;">${props.name || props.fieldName || "Lote Productivo"}</div>
-              <div style="color: rgba(28,58,46,0.7); font-size: 11px; margin-top: 2px;">${props.crop} • <b>${props.hectares || 0} ha</b></div>
-              <div style="font-size: 10px; color: #4a6b46; margin-top: 4px; background: rgba(74,107,70,0.08); padding: 3px 6px; border-radius: 4px; border: 1px solid rgba(74,107,70,0.28);">
-                🌱 ${props.statusLabel || "Desarrollo vegetal activo"}
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 9px; color: #a7a7a0; margin-top: 4px; padding-top: 3px; border-top: 1px dashed #dcdcd2;">
-                <span>📅 ${props.selectedDate || "Fecha activa"}</span>
-                ${props.currentTemp ? `<span>Clima: ${props.currentTemp}°C</span>` : ''}
-              </div>
-              <div style="color: #1c3a2e; font-weight: 700; font-size: 10px; margin-top: 5px; display: flex; align-items: center; gap: 4px; background: #f4f6f2; padding: 3px 6px; border-radius: 4px;">
-                <span>🔍 Clic para hacer zoom y abrir maqueta 3D</span>
-              </div>
-            </div>
-          `
-          : `
-            <div style="padding: 7px 11px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.35; max-width: 215px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #a7a7a0;"></span>
-                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #a7a7a0; letter-spacing: 0.05em;">Catastro Lindero</span>
-                </div>
-                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 700; color: rgba(28,58,46,0.6); background: #f4f6f2; padding: 1px 5px; border-radius: 4px;">NDVI ${props.currentNdvi}</span>` : ''}
-              </div>
-              <div style="font-weight: 700; color: #1c3a2e; font-size: 12px;">${props.name || "Chacra Vecina"}</div>
-              <div style="color: #a7a7a0; font-size: 11px; margin-top: 2px;">${props.crop || "Cultivo lindero"} • <b>${props.hectares || 0} ha</b></div>
-              <div style="color: #a7a7a0; font-style: italic; font-size: 10px; margin-top: 4px;">Lote vecino (no seleccionable)</div>
-            </div>
-          `;
-
-        hoverPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
-      } else {
-        map.getCanvas().style.cursor = "";
-        hoverPopup.remove();
+        if (features && features[0]) {
+          const f = features[0];
+          const props = f.properties || {};
+          const isPortfolio = props.isPortfolio === true || props.isPortfolio === "true";
+          map.getCanvas().style.cursor = isPortfolio ? "pointer" : "default";
+        } else {
+          map.getCanvas().style.cursor = "";
+        }
+      } catch {
+        // Safe ignore
       }
-    } catch {
-      // Safe ignore
-    }
-  });
+    });
 
-  map.on("mouseout", () => {
-    map.getCanvas().style.cursor = "";
-    hoverPopup.remove();
-  });
+    map.on("mouseout", () => {
+      map.getCanvas().style.cursor = "";
+    });
 
   // Track Zoom level dynamically + switch projection for globe/map feel
   map.on("zoom", () => {
@@ -622,7 +599,6 @@ export default function Planet3D({
     return () => {
       clearTimeout(resizeTimeout);
       ro.disconnect();
-      markersRef.current.forEach((m) => m.remove());
       map.remove();
       mapRef.current = null;
     };
@@ -637,19 +613,28 @@ export default function Planet3D({
     markersRef.current = [];
 
     fieldsList.forEach((field) => {
+      // If we are at parcel zoom (>= 13.5) and this is selectedField,
+      // hide the general field badge so it doesn't overlap the individual lot badges!
+      if (currentZoom >= 13.5 && selectedField?.id === field.id) {
+        return;
+      }
+
       const el = document.createElement("div");
       el.className =
-        "group cursor-pointer select-none flex items-center gap-2 rounded-full bg-papel/95 border-2 border-musgo/40 hover:border-musgo px-3 py-1.5 text-xs font-bold text-bosque shadow-md backdrop-blur-md transition-all hover:scale-105 hover:shadow-xl active:scale-95";
+        "terria-field-marker group cursor-pointer select-none flex items-center gap-2 rounded-full bg-papel border-2 border-musgo/50 hover:border-musgo hover:bg-nube px-3.5 py-1.5 text-xs font-bold text-bosque shadow-md hover:shadow-lg transition-colors";
 
+      el.style.pointerEvents = "auto";
+      el.style.cursor = "pointer";
+      el.style.transform = "none";
       el.title = `Clic para hacer zoom en ${field.name} y abrir maqueta 3D`;
 
       el.innerHTML = `
-        <span class="flex h-2.5 w-2.5 rounded-full bg-musgo animate-pulse shrink-0"></span>
-        <div class="flex flex-col text-left leading-tight">
-          <span class="truncate max-w-[130px] font-bold text-bosque">${field.name}</span>
+        <span class="flex h-2.5 w-2.5 rounded-full bg-musgo animate-pulse shrink-0 pointer-events-none"></span>
+        <div class="flex flex-col text-left leading-tight pointer-events-none">
+          <span class="truncate max-w-[130px] font-bold text-bosque tracking-tight">${field.name}</span>
           <span class="text-[10px] font-mono text-musgo font-semibold">${field.hectares} ha</span>
         </div>
-        <span class="flex items-center gap-1 rounded-full bg-bosque text-nube font-mono font-bold px-2 py-0.5 text-[10px] shadow-xs group-hover:bg-musgo transition-colors">
+        <span class="terria-3d-tag flex items-center gap-1 rounded-full bg-bosque text-nube font-mono font-bold px-2 py-0.5 text-[10px] shadow-xs group-hover:bg-musgo transition-colors pointer-events-none">
           <svg class="w-3 h-3 text-nube" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
           <span>3D</span>
         </span>
@@ -657,20 +642,11 @@ export default function Planet3D({
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (onSelectField) onSelectField(field);
-        map.flyTo({
-          center: [field.lng, field.lat],
-          zoom: 15.2,
-          pitch: 48,
-          bearing: -12,
-          duration: 1000,
-          essential: true,
-        });
-        if (onIsolateField) {
-          setTimeout(() => {
-            onIsolateField(field);
-          }, 950);
+        const tag = el.querySelector(".terria-3d-tag");
+        if (tag) {
+          tag.textContent = "3D...";
         }
+        triggerZoomAnd3D(field);
       });
 
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
@@ -684,7 +660,7 @@ export default function Planet3D({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [fieldsList, onSelectField, onIsolateField]);
+  }, [fieldsList, currentZoom, selectedField, triggerZoomAnd3D]);
 
   // Camera focus handlers for lots and fields
   const handleFocusLot = useCallback((lng: number, lat: number) => {
@@ -711,7 +687,7 @@ export default function Planet3D({
     });
   }, [selectedField]);
 
-  // Parcel Lot Hectare Floating Badges (Visible on map over active field)
+  // Parcel Lot Hectare Floating Badges (Visible on map over active field ONLY at parcel scale >= 13.0)
   const lotMarkersRef = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
@@ -722,6 +698,12 @@ export default function Planet3D({
     lotMarkersRef.current.forEach((m) => m.remove());
     lotMarkersRef.current = [];
 
+    // ONLY show lot breakdown markers at parcel zoom level (>= 13.0)
+    // At regional zoom (< 13.0), only the main field marker is shown to prevent collisions!
+    if (currentZoom < 13.0) {
+      return;
+    }
+
     const lots = getFieldLotBreakdown(
       selectedField,
       timelapse?.timelineState,
@@ -730,22 +712,23 @@ export default function Planet3D({
 
     lots.forEach((lot) => {
       const el = document.createElement("div");
-      el.className = "terria-lot-badge cursor-pointer select-none transition-transform hover:scale-105 active:scale-95";
+      el.className = "terria-lot-badge cursor-pointer select-none";
+      el.style.pointerEvents = "auto";
+      el.style.cursor = "pointer";
       el.title = `Clic para hacer zoom en ${lot.name} y abrir maqueta 3D`;
       el.innerHTML = `
         <div style="
           display: flex;
           align-items: center;
           gap: 6px;
-          background: rgba(255, 255, 255, 0.96);
+          background: rgba(255, 255, 255, 0.98);
           border: 1.5px solid ${lot.color};
           padding: 3px 8px;
           border-radius: 9999px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          backdrop-filter: blur(8px);
           font-family: system-ui, sans-serif;
           white-space: nowrap;
-          cursor: pointer;
+          pointer-events: none;
         ">
           <span style="
             display: inline-block;
@@ -790,12 +773,7 @@ export default function Planet3D({
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        handleFocusLot(lot.centroid[0], lot.centroid[1]);
-        if (onIsolateField && selectedField) {
-          setTimeout(() => {
-            onIsolateField(selectedField);
-          }, 950);
-        }
+        triggerZoomAnd3D(selectedField);
       });
 
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -809,7 +787,7 @@ export default function Planet3D({
       lotMarkersRef.current.forEach((m) => m.remove());
       lotMarkersRef.current = [];
     };
-  }, [selectedField, timelapse?.timelineState, handleFocusLot, onIsolateField]);
+  }, [selectedField, currentZoom, timelapse?.timelineState, triggerZoomAnd3D]);
 
   // React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
   useEffect(() => {
