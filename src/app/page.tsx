@@ -316,7 +316,12 @@ export default function Home() {
                 fields={backendFields}
                 isExpanded={isFieldExpanded}
                 onSelectField={handleSelectField}
-                onIsolateField={() => setIsFieldIsolated3D(true)}
+                onIsolateField={(field?: FieldItem) => {
+                  if (field) {
+                    handleSelectField(field);
+                  }
+                  setIsFieldIsolated3D(true);
+                }}
                 timelapse={timelapse}
                 className="h-full w-full"
               />
@@ -362,6 +367,10 @@ export default function Home() {
             <FieldCardsList
               selectedField={selectedField}
               onSelectField={handleSelectField}
+              onInspect3D={(field) => {
+                handleSelectField(field);
+                setIsFieldIsolated3D(true);
+              }}
               filterQuery={searchQuery}
               fields={backendFields}
               className="h-full min-h-0"

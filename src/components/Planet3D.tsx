@@ -492,6 +492,7 @@ export default function Planet3D({
         const queryLayers: string[] = [];
         if (map.getLayer("field-parcels-fill")) queryLayers.push("field-parcels-fill");
         if (map.getLayer("field-perimeter-fill")) queryLayers.push("field-perimeter-fill");
+        if (map.getLayer("field-parcels-labels")) queryLayers.push("field-parcels-labels");
         if (queryLayers.length === 0) return;
         const features = map.queryRenderedFeatures(e.point, { layers: queryLayers });
         if (features && features[0]) {
@@ -499,8 +500,21 @@ export default function Planet3D({
           if (isPortfolio) {
             const fieldId = features[0].properties?.fieldId;
             const match = fieldsList.find((f) => f.id === fieldId) || FIELDS_DATA.find((f) => f.id === fieldId);
-            if (match && onSelectField) {
-              onSelectField(match);
+            if (match) {
+              if (onSelectField) onSelectField(match);
+              map.flyTo({
+                center: [match.lng, match.lat],
+                zoom: 15.2,
+                pitch: 48,
+                bearing: -10,
+                duration: 1000,
+                essential: true,
+              });
+              if (onIsolateField) {
+                setTimeout(() => {
+                  onIsolateField(match);
+                }, 950);
+              }
             }
           }
         }
@@ -520,6 +534,7 @@ export default function Planet3D({
       const layersToQuery: string[] = [];
       if (activeLayer) layersToQuery.push("field-parcels-fill");
       if (map.getLayer("field-perimeter-fill")) layersToQuery.push("field-perimeter-fill");
+      if (map.getLayer("field-parcels-labels")) layersToQuery.push("field-parcels-labels");
       if (cadastreLayer) layersToQuery.push("cadastre-neighbors-fill");
 
       const features = map.queryRenderedFeatures(e.point, { layers: layersToQuery });
@@ -550,7 +565,9 @@ export default function Planet3D({
                 <span>📅 ${props.selectedDate || "Fecha activa"}</span>
                 ${props.currentTemp ? `<span>Clima: ${props.currentTemp}°C</span>` : ''}
               </div>
-              <div style="color: #4a6b46; font-weight: 600; font-size: 10px; margin-top: 5px;">Clic para abrir pasaporte ➔</div>
+              <div style="color: #1c3a2e; font-weight: 700; font-size: 10px; margin-top: 5px; display: flex; align-items: center; gap: 4px; background: #f4f6f2; padding: 3px 6px; border-radius: 4px;">
+                <span>🔍 Clic para hacer zoom y abrir maqueta 3D</span>
+              </div>
             </div>
           `
           : `
@@ -622,13 +639,19 @@ export default function Planet3D({
     fieldsList.forEach((field) => {
       const el = document.createElement("div");
       el.className =
-        "group cursor-pointer flex items-center gap-1.5 rounded-full bg-papel/95 border border-piedra-soft px-3 py-1.5 text-xs font-bold text-bosque/80 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-musgo hover:shadow-lg active:scale-95";
+        "group cursor-pointer select-none flex items-center gap-2 rounded-full bg-papel/95 border-2 border-musgo/40 hover:border-musgo px-3 py-1.5 text-xs font-bold text-bosque shadow-md backdrop-blur-md transition-all hover:scale-105 hover:shadow-xl active:scale-95";
+
+      el.title = `Clic para hacer zoom en ${field.name} y abrir maqueta 3D`;
 
       el.innerHTML = `
-        <span class="flex h-2 w-2 rounded-full bg-musgo animate-pulse"></span>
-        <span class="truncate max-w-[120px] font-bold text-bosque">${field.name}</span>
-        <span class="rounded-full bg-musgo/10 text-musgo font-semibold px-2 py-0.5 text-[10px]">
-          ${field.hectares} ha
+        <span class="flex h-2.5 w-2.5 rounded-full bg-musgo animate-pulse shrink-0"></span>
+        <div class="flex flex-col text-left leading-tight">
+          <span class="truncate max-w-[130px] font-bold text-bosque">${field.name}</span>
+          <span class="text-[10px] font-mono text-musgo font-semibold">${field.hectares} ha</span>
+        </div>
+        <span class="flex items-center gap-1 rounded-full bg-bosque text-nube font-mono font-bold px-2 py-0.5 text-[10px] shadow-xs group-hover:bg-musgo transition-colors">
+          <svg class="w-3 h-3 text-nube" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span>3D</span>
         </span>
       `;
 
@@ -637,11 +660,17 @@ export default function Planet3D({
         if (onSelectField) onSelectField(field);
         map.flyTo({
           center: [field.lng, field.lat],
-          zoom: 14.8,
-          pitch: 45,
-          bearing: -15,
-          duration: 2200,
+          zoom: 15.2,
+          pitch: 48,
+          bearing: -12,
+          duration: 1000,
+          essential: true,
         });
+        if (onIsolateField) {
+          setTimeout(() => {
+            onIsolateField(field);
+          }, 950);
+        }
       });
 
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
@@ -655,7 +684,7 @@ export default function Planet3D({
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [fieldsList, onSelectField]);
+  }, [fieldsList, onSelectField, onIsolateField]);
 
   // Camera focus handlers for lots and fields
   const handleFocusLot = useCallback((lng: number, lat: number) => {
@@ -665,7 +694,7 @@ export default function Planet3D({
       zoom: 15.2,
       pitch: 45,
       bearing: -10,
-      duration: 1800,
+      duration: 1000,
       essential: true,
     });
   }, []);
@@ -677,7 +706,7 @@ export default function Planet3D({
       zoom: 14.6,
       pitch: 42,
       bearing: -10,
-      duration: 2000,
+      duration: 1200,
       essential: true,
     });
   }, [selectedField]);
@@ -702,6 +731,7 @@ export default function Planet3D({
     lots.forEach((lot) => {
       const el = document.createElement("div");
       el.className = "terria-lot-badge cursor-pointer select-none transition-transform hover:scale-105 active:scale-95";
+      el.title = `Clic para hacer zoom en ${lot.name} y abrir maqueta 3D`;
       el.innerHTML = `
         <div style="
           display: flex;
@@ -715,6 +745,7 @@ export default function Planet3D({
           backdrop-filter: blur(8px);
           font-family: system-ui, sans-serif;
           white-space: nowrap;
+          cursor: pointer;
         ">
           <span style="
             display: inline-block;
@@ -740,12 +771,31 @@ export default function Planet3D({
             padding: 1px 5px;
             border-radius: 6px;
           ">${lot.ndvi.toFixed(2)}</span>
+          <span style="
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: #1c3a2e;
+            color: #f4f6f2;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 6px;
+          ">
+            <svg style="width: 10px; height: 10px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            3D
+          </span>
         </div>
       `;
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         handleFocusLot(lot.centroid[0], lot.centroid[1]);
+        if (onIsolateField && selectedField) {
+          setTimeout(() => {
+            onIsolateField(selectedField);
+          }, 950);
+        }
       });
 
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -759,7 +809,7 @@ export default function Planet3D({
       lotMarkersRef.current.forEach((m) => m.remove());
       lotMarkersRef.current = [];
     };
-  }, [selectedField, timelapse?.timelineState, handleFocusLot]);
+  }, [selectedField, timelapse?.timelineState, handleFocusLot, onIsolateField]);
 
   // React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
   useEffect(() => {
