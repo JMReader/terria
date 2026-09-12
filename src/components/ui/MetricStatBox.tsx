@@ -12,7 +12,7 @@ export interface MetricStatBoxProps {
   unit?: string;
   subtext?: string;
   progressPercent?: number;
-  highlight?: "neutral" | "emerald" | "blue" | "amber";
+  highlight?: "neutral" | "emerald" | "blue" | "amber"; // se mapean a musgo/cielo/tierra
   className?: string;
 }
 
@@ -45,48 +45,48 @@ export default function MetricStatBox({
   const getHighlightColor = () => {
     switch (highlight) {
       case "emerald":
-        return "hover:border-emerald-600 text-emerald-700";
+        return "hover:border-musgo text-musgo";
       case "blue":
-        return "hover:border-blue-600 text-blue-700";
+        return "hover:border-cielo-deep text-cielo-deep";
       case "amber":
-        return "hover:border-amber-600 text-amber-700";
+        return "hover:border-tierra-deep text-tierra-deep";
       default:
-        return "hover:border-gray-900 text-gray-900";
+        return "hover:border-bosque text-bosque";
     }
   };
 
   const getProgressColor = () => {
     switch (highlight) {
       case "emerald":
-        return "bg-emerald-600";
+        return "bg-musgo";
       case "blue":
-        return "bg-blue-600";
+        return "bg-cielo";
       case "amber":
-        return "bg-amber-500";
+        return "bg-tierra-deep";
       default:
-        return "bg-gray-900";
+        return "bg-bosque";
     }
   };
 
   return (
     <div
       ref={cardRef}
-      className={`group relative flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 transition-all duration-200 cursor-default shadow-xs hover:shadow-sm ${getHighlightColor()} ${className}`}
+      className={`group relative flex flex-col justify-between rounded-2xl border border-piedra-soft bg-papel p-4 transition-all duration-200 cursor-default shadow-xs hover:shadow-sm ${getHighlightColor()} ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase">
+          <span className="text-[10px] font-mono font-bold tracking-wider text-piedra uppercase">
             {label}
           </span>
-          <span className="h-1.5 w-1.5 rounded-full bg-gray-200 group-hover:bg-gray-900 transition-colors" />
+          <span className="h-1.5 w-1.5 rounded-full bg-piedra-soft group-hover:bg-bosque transition-colors" />
         </div>
 
         <div ref={valueRef} className="mt-2 flex items-baseline gap-1.5">
-          <span className="text-2xl font-black tracking-tight text-gray-900">
+          <span className="text-2xl font-black tracking-tight text-bosque">
             {value !== null && value !== undefined ? value : "—"}
           </span>
           {unit && (
-            <span className="text-xs font-mono font-semibold text-gray-500">
+            <span className="text-xs font-mono font-semibold text-piedra">
               {unit}
             </span>
           )}
@@ -96,7 +96,7 @@ export default function MetricStatBox({
       {(progressPercent !== undefined || subtext) && (
         <div className="mt-3 space-y-1.5">
           {progressPercent !== undefined && (
-            <div className="h-1 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-1 w-full overflow-hidden rounded-full bg-piedra-soft">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${getProgressColor()}`}
                 style={{ width: `${Math.min(Math.max(progressPercent, 0), 100)}%` }}
@@ -104,7 +104,7 @@ export default function MetricStatBox({
             </div>
           )}
           {subtext && (
-            <span className="block text-[11px] font-mono text-gray-400">
+            <span className="block text-[11px] font-mono text-piedra">
               {subtext}
             </span>
           )}

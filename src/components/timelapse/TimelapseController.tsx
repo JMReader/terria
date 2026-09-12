@@ -72,12 +72,12 @@ export default function TimelapseController({
   return (
     <div
       ref={containerRef}
-      className={`group relative flex flex-col gap-2.5 rounded-3xl border border-gray-200 bg-white p-3.5 sm:p-4 shadow-md transition-colors duration-200 hover:border-gray-900 select-none ${className}`}
+      className={`group relative flex flex-col gap-2.5 rounded-3xl border border-piedra-soft bg-papel p-3.5 sm:p-4 shadow-md transition-colors duration-200 hover:border-bosque select-none ${className}`}
     >
       {/* Top Status & Layer Switcher Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-piedra-soft pb-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-black text-gray-900 tracking-tight">
+          <span className="text-xs font-mono font-black text-bosque tracking-tight">
             {selectedDate || "2025-01-01"}
           </span>
 
@@ -85,8 +85,8 @@ export default function TimelapseController({
             ref={statusBadgeRef}
             className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold tracking-wider uppercase border ${
               isFresh && satellite
-                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                : "bg-gray-100 text-gray-600 border-gray-200"
+                ? "bg-musgo/10 text-musgo border-musgo/30"
+                : "bg-nube text-piedra border-piedra-soft"
             }`}
           >
             {isFresh && satellite
@@ -96,13 +96,13 @@ export default function TimelapseController({
         </div>
 
         {/* Layer Segmented Control (NDVI vs RGB vs Weather) */}
-        <div className="flex items-center rounded-xl bg-gray-100 p-0.5 border border-gray-200">
+        <div className="flex items-center rounded-xl bg-nube p-0.5 border border-piedra-soft">
           <button
             onClick={() => onLayerChange("ndvi")}
             className={`rounded-lg px-2.5 py-1 text-[10px] font-mono font-bold tracking-wider uppercase transition-all cursor-pointer ${
               activeLayer === "ndvi"
-                ? "bg-white text-emerald-800 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-musgo shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             NDVI Vigor
@@ -111,8 +111,8 @@ export default function TimelapseController({
             onClick={() => onLayerChange("rgb")}
             className={`rounded-lg px-2.5 py-1 text-[10px] font-mono font-bold tracking-wider uppercase transition-all cursor-pointer ${
               activeLayer === "rgb"
-                ? "bg-white text-blue-800 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-cielo-deep shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             RGB Natural
@@ -121,8 +121,8 @@ export default function TimelapseController({
             onClick={() => onLayerChange("weather")}
             className={`rounded-lg px-2.5 py-1 text-[10px] font-mono font-bold tracking-wider uppercase transition-all cursor-pointer ${
               activeLayer === "weather"
-                ? "bg-white text-amber-700 shadow-xs border border-gray-200"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-papel text-tierra-deep shadow-xs border border-piedra-soft"
+                : "text-piedra hover:text-bosque"
             }`}
           >
             ERA5 Clima
@@ -138,9 +138,9 @@ export default function TimelapseController({
           max={Math.max(0, dates.length - 1)}
           value={dateIndex}
           onChange={(e) => onDateIndexChange(Number(e.target.value))}
-          className="w-full accent-gray-900 h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer"
+          className="w-full accent-bosque h-1.5 bg-piedra-soft/60 rounded-lg appearance-none cursor-pointer"
         />
-        <div className="flex justify-between text-[9px] font-mono text-gray-400">
+        <div className="flex justify-between text-[9px] font-mono text-piedra">
           <span>{dates[0] || "Inicio"}</span>
           <span>Paso diario</span>
           <span>{dates[dates.length - 1] || "Fin"}</span>
@@ -155,8 +155,8 @@ export default function TimelapseController({
             onClick={onTogglePlay}
             className={`rounded-xl px-3 py-1.5 text-xs font-mono font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer shadow-xs active:scale-[0.98] ${
               isPlaying
-                ? "bg-amber-600 text-white hover:bg-amber-700"
-                : "bg-gray-900 text-white hover:bg-black"
+                ? "bg-tierra-deep text-nube hover:bg-tierra"
+                : "bg-bosque text-nube hover:bg-bosque-deep"
             }`}
           >
             {isPlaying ? "Pausa" : "Reproducir"}
@@ -166,14 +166,14 @@ export default function TimelapseController({
           <button
             onClick={onStepPrev}
             title="Día anterior"
-            className="rounded-xl border border-gray-200 bg-white hover:border-gray-900 px-2.5 py-1.5 text-[11px] font-mono font-bold text-gray-700 transition-colors cursor-pointer"
+            className="rounded-xl border border-piedra-soft bg-papel hover:border-bosque px-2.5 py-1.5 text-[11px] font-mono font-bold text-bosque/80 transition-colors cursor-pointer"
           >
             ‹ Día
           </button>
           <button
             onClick={onStepNext}
             title="Día siguiente"
-            className="rounded-xl border border-gray-200 bg-white hover:border-gray-900 px-2.5 py-1.5 text-[11px] font-mono font-bold text-gray-700 transition-colors cursor-pointer"
+            className="rounded-xl border border-piedra-soft bg-papel hover:border-bosque px-2.5 py-1.5 text-[11px] font-mono font-bold text-bosque/80 transition-colors cursor-pointer"
           >
             Día ›
           </button>
@@ -182,29 +182,29 @@ export default function TimelapseController({
           <button
             onClick={() => onJumpObservation("prev")}
             title="Observación satelital previa"
-            className="hidden sm:inline-block rounded-xl border border-gray-200 bg-gray-50 hover:border-gray-900 px-2.5 py-1.5 text-[10px] font-mono font-semibold text-gray-600 transition-colors cursor-pointer"
+            className="hidden sm:inline-block rounded-xl border border-piedra-soft bg-nube hover:border-bosque px-2.5 py-1.5 text-[10px] font-mono font-semibold text-bosque/60 transition-colors cursor-pointer"
           >
             ‹ Satélite
           </button>
           <button
             onClick={() => onJumpObservation("next")}
             title="Observación satelital siguiente"
-            className="hidden sm:inline-block rounded-xl border border-gray-200 bg-gray-50 hover:border-gray-900 px-2.5 py-1.5 text-[10px] font-mono font-semibold text-gray-600 transition-colors cursor-pointer"
+            className="hidden sm:inline-block rounded-xl border border-piedra-soft bg-nube hover:border-bosque px-2.5 py-1.5 text-[10px] font-mono font-semibold text-bosque/60 transition-colors cursor-pointer"
           >
             Satélite ›
           </button>
         </div>
 
         {/* Playback Speed Segment */}
-        <div className="flex items-center rounded-xl bg-gray-100 p-0.5 border border-gray-200 text-[10px] font-mono">
+        <div className="flex items-center rounded-xl bg-nube p-0.5 border border-piedra-soft text-[10px] font-mono">
           {([1, 2, 4] as const).map((s) => (
             <button
               key={s}
               onClick={() => onSpeedChange(s)}
               className={`rounded-lg px-2 py-1 font-bold transition-all cursor-pointer ${
                 speed === s
-                  ? "bg-white text-gray-900 shadow-xs border border-gray-200"
-                  : "text-gray-500 hover:text-gray-900"
+                  ? "bg-papel text-bosque shadow-xs border border-piedra-soft"
+                  : "text-piedra hover:text-bosque"
               }`}
             >
               {s}X

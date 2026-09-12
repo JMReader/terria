@@ -275,7 +275,7 @@ export default function Planet3D({
           source: "field-parcels",
           filter: ["==", ["get", "isPortfolio"], false],
           paint: {
-            "line-color": "#475569",
+            "line-color": "#a7a7a0",
             "line-width": 1.2,
             "line-opacity": 0.7,
           },
@@ -288,7 +288,7 @@ export default function Planet3D({
           source: "field-parcels",
           filter: ["==", ["get", "isPerimeter"], true],
           paint: {
-            "fill-color": "#1e40af",
+            "fill-color": "#1c3a2e",
             "fill-opacity": 0.05,
           },
         });
@@ -312,7 +312,7 @@ export default function Planet3D({
           source: "field-parcels",
           filter: ["all", ["==", ["get", "isPortfolio"], true], ["!=", ["get", "isPerimeter"], true]],
           paint: {
-            "line-color": "#0f172a",
+            "line-color": "#1c3a2e",
             "line-width": 1.8,
             "line-opacity": 0.85,
           },
@@ -325,13 +325,13 @@ export default function Planet3D({
           source: "field-parcels",
           filter: ["==", ["get", "isPerimeter"], true],
           paint: {
-            "line-color": "#0f172a",
+            "line-color": "#12271e",
             "line-width": 3.0,
             "line-opacity": 1.0,
           },
         });
 
-        // Layer 7: Active field outer glow / halo (OneSoil neon blue halo)
+        // Layer 7: Active field outer glow / halo (halo musgo de marca)
         map.addLayer({
           id: "field-active-halo",
           type: "line",
@@ -342,13 +342,13 @@ export default function Planet3D({
             ["==", ["get", "fieldId"], selectedField?.id || ""],
           ],
           paint: {
-            "line-color": "#2563eb",
+            "line-color": "#4a6b46",
             "line-width": 7.0,
             "line-opacity": 0.55,
           },
         });
 
-        // Layer 8: Active field crisp white neon border (OneSoil-style neon white boundary)
+        // Layer 8: Active field crisp chalk border (boundary nube de marca)
         map.addLayer({
           id: "field-active-highlight",
           type: "line",
@@ -359,7 +359,7 @@ export default function Planet3D({
             ["==", ["get", "fieldId"], selectedField?.id || ""],
           ],
           paint: {
-            "line-color": "#ffffff",
+            "line-color": "#f4f6f2",
             "line-width": 3.5,
             "line-opacity": 1.0,
           },
@@ -435,9 +435,9 @@ export default function Planet3D({
       try {
         // setSky gives white/blue atmosphere halo around the globe
         map.setSky({
-          "sky-color": "#ffffff",
+          "sky-color": "#fafaf6",
           "sky-horizon-blend": 0.5,
-          "horizon-color": "#dbeafe",
+          "horizon-color": "#f4f6f2",
           "horizon-fog-blend": 0.05,
           "atmosphere-blend": 0.6,
         } as any);
@@ -510,35 +510,35 @@ export default function Planet3D({
             <div style="padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.4; max-width: 230px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #10b981;"></span>
-                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #047857; letter-spacing: 0.05em;">Lote Delimitado</span>
+                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #4a6b46;"></span>
+                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #4a6b46; letter-spacing: 0.05em;">Lote Delimitado</span>
                 </div>
-                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 800; color: #ffffff; background: ${props.color || '#15803d'}; padding: 1px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">NDVI ${props.currentNdvi}</span>` : ''}
+                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 800; color: #ffffff; background: ${props.color || '#4a6b46'}; padding: 1px 6px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">NDVI ${props.currentNdvi}</span>` : ''}
               </div>
-              <div style="font-weight: 800; color: #0f172a; font-size: 12px;">${props.name || props.fieldName || "Lote Productivo"}</div>
-              <div style="color: #475569; font-size: 11px; margin-top: 2px;">${props.crop} • <b>${props.hectares || 0} ha</b></div>
-              <div style="font-size: 10px; color: #047857; margin-top: 4px; background: #f0fdf4; padding: 3px 6px; border-radius: 4px; border: 1px solid #bbf7d0;">
+              <div style="font-weight: 800; color: #1c3a2e; font-size: 12px;">${props.name || props.fieldName || "Lote Productivo"}</div>
+              <div style="color: rgba(28,58,46,0.7); font-size: 11px; margin-top: 2px;">${props.crop} • <b>${props.hectares || 0} ha</b></div>
+              <div style="font-size: 10px; color: #4a6b46; margin-top: 4px; background: rgba(74,107,70,0.08); padding: 3px 6px; border-radius: 4px; border: 1px solid rgba(74,107,70,0.28);">
                 🌱 ${props.statusLabel || "Desarrollo vegetal activo"}
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 9px; color: #64748b; margin-top: 4px; padding-top: 3px; border-top: 1px dashed #e2e8f0;">
+              <div style="display: flex; justify-content: space-between; font-size: 9px; color: #a7a7a0; margin-top: 4px; padding-top: 3px; border-top: 1px dashed #dcdcd2;">
                 <span>📅 ${props.selectedDate || "Fecha activa"}</span>
                 ${props.currentTemp ? `<span>Clima: ${props.currentTemp}°C</span>` : ''}
               </div>
-              <div style="color: #2563eb; font-weight: 600; font-size: 10px; margin-top: 5px;">Clic para abrir pasaporte ➔</div>
+              <div style="color: #4a6b46; font-weight: 600; font-size: 10px; margin-top: 5px;">Clic para abrir pasaporte ➔</div>
             </div>
           `
           : `
             <div style="padding: 7px 11px; font-family: system-ui, sans-serif; font-size: 11px; line-height: 1.35; max-width: 215px;">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #94a3b8;"></span>
-                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em;">Catastro Lindero</span>
+                  <span style="display: inline-block; width: 7px; height: 7px; border-radius: 9999px; background: #a7a7a0;"></span>
+                  <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #a7a7a0; letter-spacing: 0.05em;">Catastro Lindero</span>
                 </div>
-                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 700; color: #475569; background: #f1f5f9; padding: 1px 5px; border-radius: 4px;">NDVI ${props.currentNdvi}</span>` : ''}
+                ${props.currentNdvi ? `<span style="font-size: 10px; font-weight: 700; color: rgba(28,58,46,0.6); background: #f4f6f2; padding: 1px 5px; border-radius: 4px;">NDVI ${props.currentNdvi}</span>` : ''}
               </div>
-              <div style="font-weight: 700; color: #1e293b; font-size: 12px;">${props.name || "Chacra Vecina"}</div>
-              <div style="color: #64748b; font-size: 11px; margin-top: 2px;">${props.crop || "Cultivo lindero"} • <b>${props.hectares || 0} ha</b></div>
-              <div style="color: #94a3b8; font-style: italic; font-size: 10px; margin-top: 4px;">Lote vecino (no seleccionable)</div>
+              <div style="font-weight: 700; color: #1c3a2e; font-size: 12px;">${props.name || "Chacra Vecina"}</div>
+              <div style="color: #a7a7a0; font-size: 11px; margin-top: 2px;">${props.crop || "Cultivo lindero"} • <b>${props.hectares || 0} ha</b></div>
+              <div style="color: #a7a7a0; font-style: italic; font-size: 10px; margin-top: 4px;">Lote vecino (no seleccionable)</div>
             </div>
           `;
 
@@ -596,12 +596,12 @@ export default function Planet3D({
     fieldsList.forEach((field) => {
       const el = document.createElement("div");
       el.className =
-        "group cursor-pointer flex items-center gap-1.5 rounded-full bg-white/95 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-blue-500 hover:shadow-lg active:scale-95";
+        "group cursor-pointer flex items-center gap-1.5 rounded-full bg-papel/95 border border-piedra-soft px-3 py-1.5 text-xs font-bold text-bosque/80 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-musgo hover:shadow-lg active:scale-95";
 
       el.innerHTML = `
-        <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span class="truncate max-w-[120px] font-bold text-gray-900">${field.name}</span>
-        <span class="rounded-full bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 text-[10px]">
+        <span class="flex h-2 w-2 rounded-full bg-musgo animate-pulse"></span>
+        <span class="truncate max-w-[120px] font-bold text-bosque">${field.name}</span>
+        <span class="rounded-full bg-musgo/10 text-musgo font-semibold px-2 py-0.5 text-[10px]">
           ${field.hectares} ha
         </span>
       `;
@@ -697,10 +697,10 @@ export default function Planet3D({
             border-radius: 9999px;
             background: ${lot.color};
           "></span>
-          <span style="font-size: 11px; font-weight: 800; color: #0f172a;">${lot.name}</span>
+          <span style="font-size: 11px; font-weight: 800; color: #1c3a2e;">${lot.name}</span>
           <span style="
-            background: #f1f5f9;
-            color: #0f172a;
+            background: #f4f6f2;
+            color: #1c3a2e;
             font-size: 10px;
             font-weight: 800;
             padding: 1px 5px;
@@ -834,8 +834,8 @@ export default function Planet3D({
   };
 
   return (
-    <div className={`relative w-full h-full overflow-hidden select-none bg-white ${className}`}>
-      {/* Real Mapbox GL WebGL Map Container */}
+    <div className={`relative w-full h-full overflow-hidden select-none bg-nube ${className}`}>
+      {/* MapLibre GL WebGL Map Container */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
       {/* Top Left: 3D Button, Scale/Altitude, and NDVI Colors */}
@@ -845,25 +845,25 @@ export default function Planet3D({
           <button
             onClick={() => onIsolateField(selectedField)}
             title="Ver maqueta 3D aislada"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/95 text-blue-700 hover:bg-blue-50 transition-all cursor-pointer border border-blue-200/90 shadow-sm backdrop-blur-md"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-papel/95 text-bosque hover:bg-musgo/10 transition-all cursor-pointer border border-musgo/40 shadow-sm backdrop-blur-md"
           >
-            <Box className="h-3.5 w-3.5 text-blue-600" />
+            <Box className="h-3.5 w-3.5 text-musgo" />
             <span>Ver en 3D</span>
           </button>
         )}
 
         {/* Current Scale & Altitude Pill */}
-        <div className="flex items-center gap-2 rounded-full bg-white/90 border border-gray-200/80 px-3 py-1 shadow-xs backdrop-blur-sm text-[11px] text-gray-500 font-sans w-fit">
+        <div className="flex items-center gap-2 rounded-full bg-papel/90 border border-piedra-soft/80 px-3 py-1 shadow-xs backdrop-blur-sm text-[11px] text-piedra font-sans w-fit">
           <span
             className={`h-1.5 w-1.5 rounded-full shrink-0 ${
               zoomLevelName === "parcel"
-                ? "bg-emerald-500 animate-pulse"
+                ? "bg-musgo animate-pulse"
                 : zoomLevelName === "regional"
-                ? "bg-blue-500"
-                : "bg-gray-400"
+                ? "bg-cielo-deep"
+                : "bg-piedra"
             }`}
           />
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-bosque/80">
             {zoomLevelName === "parcel"
               ? `Nivel Parcela (Zoom ${currentZoom.toFixed(1)} • Calles y Catastro)`
               : zoomLevelName === "regional"
@@ -874,26 +874,26 @@ export default function Planet3D({
 
         {/* Leyenda NDVI: únicamente NDVI y los colores, englobado en un rectángulo con bordes super redondeados */}
         {currentZoom >= 4.0 && (
-          <div className="flex items-center gap-2.5 rounded-full bg-white/95 border border-gray-200/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md text-[11px] text-gray-700 w-fit animate-in fade-in duration-300">
-            <span className="font-bold text-gray-900">NDVI:</span>
+          <div className="flex items-center gap-2.5 rounded-full bg-papel/95 border border-piedra-soft px-3.5 py-1.5 shadow-sm backdrop-blur-md text-[11px] text-bosque/70 w-fit animate-in fade-in duration-300">
+            <span className="font-bold text-bosque">NDVI:</span>
             <div className="flex items-center gap-1 font-medium">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#fef08a] border border-black/10 shadow-xs" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#c9b28a] border border-black/10 shadow-xs" />
               <span>&lt;0.35</span>
             </div>
             <div className="flex items-center gap-1 font-medium">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#bef264] border border-black/10 shadow-xs" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a9b183] border border-black/10 shadow-xs" />
               <span>0.50</span>
             </div>
             <div className="flex items-center gap-1 font-medium">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#84cc16] border border-black/10 shadow-xs" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8a9a6b] border border-black/10 shadow-xs" />
               <span>0.65</span>
             </div>
             <div className="flex items-center gap-1 font-medium">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22c55e] border border-black/10 shadow-xs" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#637e52] border border-black/10 shadow-xs" />
               <span>0.78</span>
             </div>
             <div className="flex items-center gap-1 font-medium">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#15803d] border border-black/10 shadow-xs" />
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1c3a2e] border border-black/10 shadow-xs" />
               <span>&gt;0.85</span>
             </div>
           </div>
@@ -905,90 +905,90 @@ export default function Planet3D({
         <div className="relative">
           <button
             onClick={() => setShowStyleMenu(!showStyleMenu)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/95 border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm backdrop-blur-md hover:bg-gray-50 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-papel/95 border border-piedra-soft text-xs font-semibold text-bosque/80 shadow-sm backdrop-blur-md hover:bg-nube transition-colors cursor-pointer"
           >
-            <Layers className="h-3.5 w-3.5 text-blue-600" />
+            <Layers className="h-3.5 w-3.5 text-musgo" />
             <span>{OPEN_MAP_STYLES[currentStyleKey].name}</span>
           </button>
 
           {showStyleMenu && (
-            <div className="absolute right-0 top-10 w-52 rounded-2xl bg-white border border-gray-200 p-2 shadow-xl backdrop-blur-md space-y-1 text-xs z-30">
-              <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <div className="absolute right-0 top-10 w-52 rounded-2xl bg-papel border border-piedra-soft p-2 shadow-xl backdrop-blur-md space-y-1 text-xs z-30">
+              <div className="px-2 py-1 text-[10px] font-bold text-piedra uppercase tracking-wider">
                 Capas Gratuitas (Sin API Key)
               </div>
               <button
                 onClick={() => handleStyleChange("canvas")}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-colors ${
                   currentStyleKey === "canvas"
-                    ? "bg-blue-50 text-blue-700 font-bold"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "bg-musgo/10 text-musgo font-bold"
+                    : "text-bosque/70 hover:bg-nube"
                 }`}
               >
                 <div>
                   <div className="font-semibold">Minimalista Blanco</div>
-                  <div className="text-[10px] text-gray-400">Ideal para NDVI y lotes</div>
+                  <div className="text-[10px] text-piedra">Ideal para NDVI y lotes</div>
                 </div>
-                {currentStyleKey === "canvas" && <span className="text-blue-600 font-bold">✓</span>}
+                {currentStyleKey === "canvas" && <span className="text-musgo font-bold">✓</span>}
               </button>
 
               <button
                 onClick={() => handleStyleChange("satellite")}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-colors ${
                   currentStyleKey === "satellite"
-                    ? "bg-blue-50 text-blue-700 font-bold"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "bg-musgo/10 text-musgo font-bold"
+                    : "text-bosque/70 hover:bg-nube"
                 }`}
               >
                 <div>
                   <div className="font-semibold">Satélite Real HD</div>
-                  <div className="text-[10px] text-gray-400">Fotografía satelital + rutas</div>
+                  <div className="text-[10px] text-piedra">Fotografía satelital + rutas</div>
                 </div>
-                {currentStyleKey === "satellite" && <span className="text-blue-600 font-bold">✓</span>}
+                {currentStyleKey === "satellite" && <span className="text-musgo font-bold">✓</span>}
               </button>
 
               <button
                 onClick={() => handleStyleChange("streets")}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-colors ${
                   currentStyleKey === "streets"
-                    ? "bg-blue-50 text-blue-700 font-bold"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "bg-musgo/10 text-musgo font-bold"
+                    : "text-bosque/70 hover:bg-nube"
                 }`}
               >
                 <div>
                   <div className="font-semibold">Calles & Catastro</div>
-                  <div className="text-[10px] text-gray-400">Red vial y poblados</div>
+                  <div className="text-[10px] text-piedra">Red vial y poblados</div>
                 </div>
-                {currentStyleKey === "streets" && <span className="text-blue-600 font-bold">✓</span>}
+                {currentStyleKey === "streets" && <span className="text-musgo font-bold">✓</span>}
               </button>
 
               <button
                 onClick={() => handleStyleChange("osm")}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-colors ${
                   currentStyleKey === "osm"
-                    ? "bg-blue-50 text-blue-700 font-bold"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "bg-musgo/10 text-musgo font-bold"
+                    : "text-bosque/70 hover:bg-nube"
                 }`}
               >
                 <div>
                   <div className="font-semibold">OpenStreetMap</div>
-                  <div className="text-[10px] text-gray-400">Mapa abierto global</div>
+                  <div className="text-[10px] text-piedra">Mapa abierto global</div>
                 </div>
-                {currentStyleKey === "osm" && <span className="text-blue-600 font-bold">✓</span>}
+                {currentStyleKey === "osm" && <span className="text-musgo font-bold">✓</span>}
               </button>
 
               <button
                 onClick={() => handleStyleChange("topo")}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-colors ${
                   currentStyleKey === "topo"
-                    ? "bg-blue-50 text-blue-700 font-bold"
-                    : "text-gray-700 hover:bg-gray-50"
+                    ? "bg-musgo/10 text-musgo font-bold"
+                    : "text-bosque/70 hover:bg-nube"
                 }`}
               >
                 <div>
                   <div className="font-semibold">Relieve & Terreno</div>
-                  <div className="text-[10px] text-gray-400">Elevación y topografía</div>
+                  <div className="text-[10px] text-piedra">Elevación y topografía</div>
                 </div>
-                {currentStyleKey === "topo" && <span className="text-blue-600 font-bold">✓</span>}
+                {currentStyleKey === "topo" && <span className="text-musgo font-bold">✓</span>}
               </button>
             </div>
           )}
@@ -1018,7 +1018,7 @@ export default function Planet3D({
         <button
           onClick={handleZoomIn}
           title="Acercar mapa"
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/95 border border-gray-200 text-gray-700 shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-all cursor-pointer backdrop-blur-md active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-papel/95 border border-piedra-soft text-bosque/70 shadow-sm hover:bg-nube hover:text-bosque transition-all cursor-pointer backdrop-blur-md active:scale-95"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
@@ -1026,7 +1026,7 @@ export default function Planet3D({
         <button
           onClick={handleZoomOut}
           title="Alejar mapa"
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/95 border border-gray-200 text-gray-700 shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-all cursor-pointer backdrop-blur-md active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-papel/95 border border-piedra-soft text-bosque/70 shadow-sm hover:bg-nube hover:text-bosque transition-all cursor-pointer backdrop-blur-md active:scale-95"
         >
           <ZoomOut className="h-4 w-4" />
         </button>
@@ -1034,7 +1034,7 @@ export default function Planet3D({
         <button
           onClick={zoomToGlobal}
           title="Restablecer a Globo 3D"
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/95 border border-gray-200 text-gray-700 shadow-sm hover:bg-gray-100 hover:text-gray-900 transition-all cursor-pointer backdrop-blur-md active:scale-95 mt-1"
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-papel/95 border border-piedra-soft text-bosque/70 shadow-sm hover:bg-nube hover:text-bosque transition-all cursor-pointer backdrop-blur-md active:scale-95 mt-1"
         >
           <RotateCcw className="h-4 w-4" />
         </button>
@@ -1043,7 +1043,7 @@ export default function Planet3D({
 
 
       {/* Attribution & Navigation Hint */}
-      <div className="absolute bottom-1 right-14 z-10 pointer-events-none text-[10px] text-gray-400 font-sans hidden sm:block">
+      <div className="absolute bottom-1 right-14 z-10 pointer-events-none text-[10px] text-piedra font-sans hidden sm:block">
         Arrastra para navegar • Scroll para hacer zoom
       </div>
     </div>

@@ -44,8 +44,8 @@ export default function WebGpuCosmicGrid() {
             let grid = step(0.98, fract(gridUv.x)) + step(0.98, fract(gridUv.y));
             let gridVal = grid * 0.025;
 
-            // Very soft light gradient
-            let baseColor = vec3f(0.975, 0.982, 0.99) - vec3f(gridVal);
+            // Very soft light gradient (nube Terria #f4f6f2)
+            let baseColor = vec3f(0.957, 0.965, 0.949) - vec3f(gridVal);
             return vec4f(baseColor, 0.5);
           }
         `;
@@ -110,7 +110,7 @@ export default function WebGpuCosmicGrid() {
         }`}
       />
       {/* Soft light clean background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9]/60 to-[#f8fafc]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-nube via-papel/60 to-nube" />
     </div>
   );
 }

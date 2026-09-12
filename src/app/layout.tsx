@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,16 +12,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "TERRIA — Inteligencia Territorial & Alquiler de Campos",
-  description: "Reconstruimos la historia del campo desde el espacio con satélites e IA. Machine proposes, human confirms.",
+  title: "TERRIA — Certificación de parcelas",
+  description:
+    "Blockchain + IA para la historia del campo. Cada parcela tiene una historia; ahora puede demostrarla. La tierra tiene memoria.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="es"
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
