@@ -16,11 +16,12 @@ from app.schemas import (
 )
 from app.store import FieldNotFound, SQLiteFieldStore
 from app.timelapse.router import router as timelapse_router
+from app.what_if.router import router as what_if_router
 
 app = FastAPI(
     title="TERRIA API",
     summary="Backend for the shareable history of a field.",
-    description="Initial CRUD API for fields, public field passports, and timelapse engine.",
+    description="Initial CRUD API for fields, public field passports, timelapse engine, and What-If simulations.",
     version="0.1.0",
     openapi_version="3.1.0",
     openapi_tags=[
@@ -28,6 +29,7 @@ app = FastAPI(
         {"name": "Fields", "description": "Private field management."},
         {"name": "Public fields", "description": "Shareable field passports."},
         {"name": "Timelapse", "description": "Field history and temporal observations."},
+        {"name": "Simulations", "description": "What-If crop rotation and retrospective agronomic simulations."},
     ],
 )
 app.add_middleware(
@@ -39,6 +41,7 @@ app.add_middleware(
 )
 store = SQLiteFieldStore()
 app.include_router(timelapse_router)
+app.include_router(what_if_router)
 
 DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
 
