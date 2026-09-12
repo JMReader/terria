@@ -6,7 +6,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import gsap from "gsap";
 import { FieldItem } from "@/data/fieldsData";
 import { FIELD_SECTORS_DATA, ParcelSector } from "@/data/sectorsData";
-import { getNdviRampColor } from "@/data/backendParcelsGeoJson";
+import {
+  getNdviRampColor,
+  getTempRampColor,
+  getSimulatedParcelNdvi,
+} from "@/data/backendParcelsGeoJson";
 import {
   ArrowLeft,
   Layers,
@@ -25,12 +29,14 @@ import {
 export interface Field3DIsoViewerProps {
   field: FieldItem;
   onBackToMap: () => void;
+  timelapse?: any;
   className?: string;
 }
 
 export default function Field3DIsoViewer({
   field,
   onBackToMap,
+  timelapse,
   className = "",
 }: Field3DIsoViewerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -38,85 +44,236 @@ export default function Field3DIsoViewer({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Group | null>(null);
 
+  // Sector meshes ref for dynamic color updates without scene rebuild
+  const sectorMeshesRef = useRef<
+    {
+      id: string;
+      mesh: THREE.Mesh;
+      beacon: THREE.Mesh;
+      pole: THREE.Mesh;
+      sector: ParcelSector;
+    }[]
+  >([]);
+
   const rawSectors = FIELD_SECTORS_DATA[field.id];
+
+  // Dynamic sector computation evaluated for current timelapse date / state
   const sectors: ParcelSector[] = useMemo(() => {
-    if (rawSectors && rawSectors.length > 0) {
-      return rawSectors.map((s) => ({
-        ...s,
-        color: getNdviRampColor(s.ndvi),
-      }));
+    // 1. Determine progress across timeline
+    let timelineProgress = 0.5;
+    if (timelapse?.dates && timelapse.dates.length > 1) {
+      timelineProgress = Math.max(
+        0,
+        Math.min(1, (timelapse.dateIndex ?? 0) / (timelapse.dates.length - 1))
+      );
     }
 
-    // Default dynamic subdivision for fields without hardcoded sectors (e.g. backend fields)
-    const baseNdvi = field.ndvi ?? 0.76;
-    return [
-      {
-        id: `${field.id}-sec-1`,
-        name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
-        hectares: Number((field.hectares * 0.48).toFixed(1)),
-        crop: field.primaryCrop || field.crop || "Maíz Tardío",
-        variety: "Híbrido Alto Rinde",
-        ndvi: baseNdvi,
-        moisturePercent: 82,
-        expectedYield: "112 qq/ha",
-        soilHorizon: "Hapludol Típico Profundo",
-        color: getNdviRampColor(baseNdvi),
-        offsets: [
-          [0.012, -0.012],
-          [0.012, 0.012],
-          [0.001, 0.012],
-          [0.001, -0.012],
-          [0.012, -0.012],
-        ],
-      },
-      {
-        id: `${field.id}-sec-2`,
-        name: "Lote 2 — Soja de 1ra",
-        hectares: Number((field.hectares * 0.32).toFixed(1)),
-        crop: "Soja de 1ra",
-        variety: "Grupo IV Corto",
-        ndvi: Math.max(0.25, parseFloat((baseNdvi - 0.06).toFixed(2))),
-        moisturePercent: 78,
-        expectedYield: "44 qq/ha",
-        soilHorizon: "Horizonte Árgico a 40cm",
-        color: getNdviRampColor(Math.max(0.25, baseNdvi - 0.06)),
-        offsets: [
-          [0.001, -0.012],
-          [0.001, 0.0],
-          [-0.012, 0.0],
-          [-0.012, -0.012],
-          [0.001, -0.012],
-        ],
-      },
-      {
-        id: `${field.id}-sec-3`,
-        name: "Lote 3 — Trigo / Cobertura",
-        hectares: Number((field.hectares * 0.20).toFixed(1)),
-        crop: "Trigo / Cobertura",
-        variety: "Ciclo Intermedio",
-        ndvi: Math.max(0.20, parseFloat((baseNdvi - 0.14).toFixed(2))),
-        moisturePercent: 72,
-        expectedYield: "38 qq/ha",
-        soilHorizon: "Textura Franco-Limosa",
-        color: getNdviRampColor(Math.max(0.20, baseNdvi - 0.14)),
-        offsets: [
-          [0.001, 0.0],
-          [0.001, 0.012],
-          [-0.012, 0.012],
-          [-0.012, 0.0],
-          [0.001, 0.0],
-        ],
-      },
-    ];
-  }, [field, rawSectors]);
+    // 2. Backend observed NDVI from Sentinel-2
+    let backendObservedNdvi: number | null = null;
+    if (timelapse?.timelineState?.satellite?.usable) {
+      const meanVal = timelapse.timelineState.satellite.ndvi?.mean?.value;
+      if (typeof meanVal === "number" && !isNaN(meanVal)) {
+        backendObservedNdvi = meanVal;
+      }
+    }
+
+    // 3. Weather variables
+    let activeTemp = 24.0;
+    let activeRain = 0.0;
+    if (timelapse?.timelineState?.weather) {
+      const w = timelapse.timelineState.weather;
+      if (w.temperatureMax?.value != null) activeTemp = w.temperatureMax.value;
+      if (w.precipitationDay?.value != null) activeRain = w.precipitationDay.value;
+    }
+
+    const activeLayer: string = timelapse?.activeLayer || "ndvi";
+
+    const baseList: ParcelSector[] =
+      rawSectors && rawSectors.length > 0
+        ? rawSectors
+        : [
+            {
+              id: `${field.id}-sec-1`,
+              name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+              hectares: Number((field.hectares * 0.48).toFixed(1)),
+              crop: field.primaryCrop || field.crop || "Maíz Tardío",
+              variety: "Híbrido Alto Rinde",
+              ndvi: field.ndvi ?? 0.76,
+              moisturePercent: 82,
+              expectedYield: "112 qq/ha",
+              soilHorizon: "Hapludol Típico Profundo",
+              color: "#637e52",
+              offsets: [
+                [0.012, -0.012],
+                [0.012, 0.012],
+                [0.001, 0.012],
+                [0.001, -0.012],
+                [0.012, -0.012],
+              ],
+            },
+            {
+              id: `${field.id}-sec-2`,
+              name: "Lote 2 — Soja de 1ra",
+              hectares: Number((field.hectares * 0.32).toFixed(1)),
+              crop: "Soja de 1ra",
+              variety: "Grupo IV Corto",
+              ndvi: Math.max(0.25, parseFloat(((field.ndvi ?? 0.76) - 0.06).toFixed(2))),
+              moisturePercent: 78,
+              expectedYield: "44 qq/ha",
+              soilHorizon: "Horizonte Árgico a 40cm",
+              color: "#8a9a6b",
+              offsets: [
+                [0.001, -0.012],
+                [0.001, 0.0],
+                [-0.012, 0.0],
+                [-0.012, -0.012],
+                [0.001, -0.012],
+              ],
+            },
+            {
+              id: `${field.id}-sec-3`,
+              name: "Lote 3 — Trigo / Cobertura",
+              hectares: Number((field.hectares * 0.20).toFixed(1)),
+              crop: "Trigo / Cobertura",
+              variety: "Ciclo Intermedio",
+              ndvi: Math.max(0.20, parseFloat(((field.ndvi ?? 0.76) - 0.14).toFixed(2))),
+              moisturePercent: 72,
+              expectedYield: "38 qq/ha",
+              soilHorizon: "Textura Franco-Limosa",
+              color: "#a9b183",
+              offsets: [
+                [0.001, 0.0],
+                [0.001, 0.012],
+                [-0.012, 0.012],
+                [-0.012, 0.0],
+                [0.001, 0.0],
+              ],
+            },
+          ];
+
+    return baseList.map((sec, idx) => {
+      let parcelNdvi = sec.ndvi;
+
+      if (backendObservedNdvi != null) {
+        // Real Sentinel-2 satellite observation on this date
+        const variance = idx === 0 ? 1.03 : idx === 1 ? 0.98 : 0.93;
+        parcelNdvi = Math.max(0.12, Math.min(0.95, backendObservedNdvi * variance));
+      } else if (timelapse) {
+        // Interpolated phenological growth curve
+        const curveVal = getSimulatedParcelNdvi(sec.ndvi, sec.crop, timelineProgress);
+        const variance = idx === 0 ? 0.03 : idx === 1 ? -0.02 : -0.05;
+        parcelNdvi = Math.max(0.15, Math.min(0.92, curveVal + variance));
+      }
+
+      // Compute dynamic color depending on active layer
+      let sectorColor = getNdviRampColor(parcelNdvi);
+
+      if (activeLayer === "weather") {
+        sectorColor = getTempRampColor(activeTemp + (idx - 1) * 0.8);
+      } else if (activeLayer === "rgb") {
+        if (parcelNdvi > 0.7) {
+          sectorColor = idx === 0 ? "#244a2c" : "#2d5435";
+        } else if (parcelNdvi > 0.45) {
+          sectorColor = idx === 0 ? "#506d39" : "#5d7a42";
+        } else if (parcelNdvi > 0.3) {
+          sectorColor = "#8c874f";
+        } else {
+          sectorColor = "#9c8157";
+        }
+      }
+
+      // Dynamic moisture based on rain events & phenology
+      const baseMoisture = sec.moisturePercent || 76;
+      const computedMoisture = Math.min(
+        98,
+        Math.max(
+          35,
+          Math.round(
+            baseMoisture +
+              (activeRain > 0 ? activeRain * 2.2 : -4 + Math.sin(timelineProgress * Math.PI) * 8) +
+              (idx === 0 ? 3 : idx === 2 ? -3 : 0)
+          )
+        )
+      );
+
+      // Dynamic estimated yield based on current NDVI
+      let computedYield = sec.expectedYield;
+      if (parcelNdvi > 0.8) {
+        computedYield = `+14% sobre histórico (${sec.expectedYield})`;
+      } else if (parcelNdvi < 0.4) {
+        computedYield = "Madurez / Cosecha";
+      }
+
+      return {
+        ...sec,
+        ndvi: parseFloat(parcelNdvi.toFixed(2)),
+        color: sectorColor,
+        moisturePercent: computedMoisture,
+        expectedYield: computedYield,
+      };
+    });
+  }, [
+    field,
+    rawSectors,
+    timelapse?.dateIndex,
+    timelapse?.dates,
+    timelapse?.timelineState,
+    timelapse?.activeLayer,
+  ]);
+
+  const sectorsRef = useRef<ParcelSector[]>(sectors);
 
   const [activeSector, setActiveSector] = useState<ParcelSector>(sectors[0] || null);
 
+  // Switch active sector when field changes
   useEffect(() => {
     if (sectors.length > 0) {
       setActiveSector(sectors[0]);
     }
+  }, [field.id]);
+
+  // Smooth color tweening on timelapse change without recreating 3D scene
+  useEffect(() => {
+    sectorsRef.current = sectors;
+
+    if (!sectorMeshesRef.current || sectorMeshesRef.current.length === 0) return;
+
+    sectors.forEach((sec) => {
+      const item = sectorMeshesRef.current.find((m) => m.id === sec.id);
+      if (item) {
+        const targetColor = new THREE.Color(sec.color);
+
+        // Smoothly interpolate mesh surface color
+        gsap.to((item.mesh.material as THREE.MeshStandardMaterial).color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: 0.35,
+          ease: "power2.out",
+        });
+
+        // Smoothly interpolate beacon sphere color
+        gsap.to((item.beacon.material as THREE.MeshBasicMaterial).color, {
+          r: targetColor.r,
+          g: targetColor.g,
+          b: targetColor.b,
+          duration: 0.35,
+          ease: "power2.out",
+        });
+
+        item.sector = sec;
+        item.mesh.userData = { sector: sec };
+      }
+    });
+
+    // Keep activeSector synchronized with latest sector metrics
+    setActiveSector((prev) => {
+      if (!prev) return sectors[0] || null;
+      const found = sectors.find((s) => s.id === prev.id);
+      return found || sectors[0] || null;
+    });
   }, [sectors]);
+
   const [showLayers, setShowLayers] = useState({
     ndvi: true,
     soilStrata: true,
@@ -300,9 +457,18 @@ export default function Field3DIsoViewer({
     const sectorsGroup = new THREE.Group();
     modelGroup.add(sectorsGroup);
 
-    const sectorMeshes: { mesh: THREE.Mesh; sector: ParcelSector }[] = [];
+    const sectorMeshes: {
+      id: string;
+      mesh: THREE.Mesh;
+      beacon: THREE.Mesh;
+      pole: THREE.Mesh;
+      sector: ParcelSector;
+    }[] = [];
 
-    sectors.forEach((sec, idx) => {
+    const currentSectors =
+      sectorsRef.current.length > 0 ? sectorsRef.current : sectors;
+
+    currentSectors.forEach((sec) => {
       // Calculate bounding box and centroid from offsets
       let minLat = 999,
         maxLat = -999,
@@ -351,7 +517,6 @@ export default function Field3DIsoViewer({
       secMesh.receiveShadow = true;
       secMesh.userData = { sector: sec };
       sectorsGroup.add(secMesh);
-      sectorMeshes.push({ mesh: secMesh, sector: sec });
 
       // Sector perimeter line
       const edges = new THREE.EdgesGeometry(secGeo);
@@ -364,7 +529,6 @@ export default function Field3DIsoViewer({
       // Topographic Furrows / Surcos de Siembra
       const furrowLines = new THREE.Group();
       secMesh.add(furrowLines);
-      const centerZ = ((minLat + maxLat) / 2) * scaleFactor;
       for (let fz = -4.5; fz <= 4.5; fz += 0.35) {
         const linePts = [
           new THREE.Vector3(-4.8, 0.22, fz),
@@ -403,8 +567,17 @@ export default function Field3DIsoViewer({
       const beacon = new THREE.Mesh(beaconGeo, beaconMat);
       beacon.position.set(pinWorld.x, 0.8, pinWorld.z);
       secMesh.add(beacon);
+
+      sectorMeshes.push({
+        id: sec.id,
+        mesh: secMesh,
+        beacon,
+        pole,
+        sector: sec,
+      });
     });
 
+    sectorMeshesRef.current = sectorMeshes;
     pinWorldPositions.current = worldPins;
 
     // If field has irrigation (e.g. San Jerónimo), render a 3D Center Pivot Boom!
@@ -449,14 +622,16 @@ export default function Field3DIsoViewer({
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const candidates = sectorMeshes.map((s) => s.mesh);
+      const candidates = sectorMeshesRef.current.map((s) => s.mesh);
       const intersects = raycaster.intersectObjects(candidates, false);
 
       if (intersects.length > 0) {
         const hit = intersects[0].object as THREE.Mesh;
-        const match = sectorMeshes.find((s) => s.mesh === hit);
+        const match = sectorMeshesRef.current.find((s) => s.mesh === hit);
         if (match) {
-          setActiveSector(match.sector);
+          const currentSector =
+            sectorsRef.current.find((s) => s.id === match.id) || match.sector;
+          setActiveSector(currentSector);
           // Subtle pulse animation on clicked sector
           gsap.fromTo(
             hit.position,
@@ -487,7 +662,7 @@ export default function Field3DIsoViewer({
         visible: boolean;
       }[] = [];
 
-      worldPins.forEach(({ sector, pos }) => {
+      pinWorldPositions.current.forEach(({ sector, pos }) => {
         tempVec.copy(pos);
         tempVec.applyMatrix4(modelGroup.matrixWorld);
 
@@ -497,8 +672,11 @@ export default function Field3DIsoViewer({
         const screenX = (tempVec.x * 0.5 + 0.5) * w;
         const screenY = (-tempVec.y * 0.5 + 0.5) * h;
 
+        const currentSec =
+          sectorsRef.current.find((s) => s.id === sector.id) || sector;
+
         currentPins.push({
-          sector,
+          sector: currentSec,
           x: screenX,
           y: screenY,
           visible,
@@ -530,8 +708,9 @@ export default function Field3DIsoViewer({
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      sectorMeshesRef.current = [];
     };
-  }, [field.id, field.irrigation, sectors]);
+  }, [field.id, field.irrigation]);
 
   // Camera Presets
   const setCameraPreset = (type: "iso" | "top" | "soil") => {
@@ -612,6 +791,33 @@ export default function Field3DIsoViewer({
         </div>
       </div>
 
+      {/* Top Center: Active Timelapse Date & Satellite State */}
+      {timelapse && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none hidden md:flex items-center gap-2 rounded-full bg-papel/95 border border-piedra-soft px-3.5 py-1.5 shadow-sm backdrop-blur-md text-[11px]">
+          <span className="font-mono font-bold text-bosque">
+            {timelapse.timelineState?.selectedDate || timelapse.selectedDate}
+          </span>
+          <span className="text-piedra">•</span>
+          <span
+            className={`inline-flex items-center gap-1 font-semibold ${
+              timelapse.timelineState?.isFresh ? "text-musgo" : "text-piedra"
+            }`}
+          >
+            {timelapse.timelineState?.isFresh
+              ? "🛰️ Sentinel-2 L2A"
+              : "🌱 Curva Fenológica"}
+          </span>
+          <span className="text-piedra">•</span>
+          <span className="font-mono uppercase text-[10px] text-bosque/80 font-bold">
+            {timelapse.activeLayer === "ndvi"
+              ? "Capa NDVI"
+              : timelapse.activeLayer === "rgb"
+              ? "Color Real"
+              : "Clima ERA5"}
+          </span>
+        </div>
+      )}
+
       {/* Floating 3D Data Pins on Screen (Projected from 3D coords) */}
       <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
         {projectedPins.map((p, idx) => {
@@ -636,7 +842,7 @@ export default function Field3DIsoViewer({
                 }`}
               >
                 <span
-                  className="h-2 w-2 rounded-full shrink-0"
+                  className="h-2 w-2 rounded-full shrink-0 transition-colors duration-300"
                   style={{ backgroundColor: p.sector.color }}
                 />
                 <span className="truncate max-w-[130px]">{p.sector.name}</span>
@@ -675,14 +881,18 @@ export default function Field3DIsoViewer({
 
       {/* Bottom Agronomic Telemetry Dock for the Active Sector */}
       {activeSector && (
-        <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-auto flex justify-center">
+        <div
+          className={`absolute ${
+            timelapse ? "bottom-26 sm:bottom-28" : "bottom-4"
+          } left-4 right-4 z-20 pointer-events-auto flex justify-center transition-all duration-300`}
+        >
           <div className="w-full max-w-2xl rounded-2xl bg-papel/95 border border-piedra-soft p-3.5 shadow-xl backdrop-blur-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               {/* Sector Title & Crop */}
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span
-                    className="h-3 w-3 rounded-full shrink-0 shadow-xs"
+                    className="h-3 w-3 rounded-full shrink-0 shadow-xs transition-colors duration-300"
                     style={{ backgroundColor: activeSector.color }}
                   />
                   <h3 className="text-sm font-bold text-bosque leading-tight">
@@ -706,21 +916,21 @@ export default function Field3DIsoViewer({
                   </span>
                 </div>
 
-                <div className="rounded-xl bg-musgo/10 border border-musgo/20 px-3 py-1.5">
+                <div className="rounded-xl bg-musgo/10 border border-musgo/20 px-3 py-1.5 transition-colors duration-300">
                   <span className="text-[10px] text-musgo block font-medium">NDVI Satelital</span>
                   <span className="text-xs font-extrabold text-musgo">
                     {activeSector.ndvi.toFixed(2)}
                   </span>
                 </div>
 
-                <div className="rounded-xl bg-cielo/10 border border-cielo/30 px-3 py-1.5">
+                <div className="rounded-xl bg-cielo/10 border border-cielo/30 px-3 py-1.5 transition-colors duration-300">
                   <span className="text-[10px] text-cielo-deep block font-medium">Humedad Suelo</span>
                   <span className="text-xs font-extrabold text-cielo-deep">
                     {activeSector.moisturePercent}%
                   </span>
                 </div>
 
-                <div className="rounded-xl bg-tierra/15 border border-tierra/40 px-3 py-1.5">
+                <div className="rounded-xl bg-tierra/15 border border-tierra/40 px-3 py-1.5 transition-colors duration-300">
                   <span className="text-[10px] text-tierra-deep block font-medium">Rinde Est.</span>
                   <span className="text-xs font-extrabold text-tierra-deep">
                     {activeSector.expectedYield}

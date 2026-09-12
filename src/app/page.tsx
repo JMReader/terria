@@ -303,6 +303,7 @@ export default function Home() {
               <Field3DIsoViewer
                 field={selectedField}
                 onBackToMap={() => setIsFieldIsolated3D(false)}
+                timelapse={timelapse}
                 className="h-full w-full animate-in fade-in duration-300"
               />
             ) : (
