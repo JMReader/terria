@@ -7,6 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi[standard]>=0.128,<0.129",
   "pydantic-settings>=2.11,<3",
+  "httpx>=0.28,<0.29",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.15,<2",
+  "supabase>=2.10,<3",
+  "geoalchemy2>=0.17,<1",
 ]
 
 [build-system]
