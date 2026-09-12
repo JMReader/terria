@@ -55,6 +55,7 @@ def project_field_valuation(
         lot_name=field.name,
         projection_years=payload.projection_years,
         field_id=field_id,
+        surface_ha=field.area_hectares,
         include_audit=payload.include_audit,
     )
 
@@ -100,6 +101,7 @@ def project_standalone_valuation(
         geometry_data=geom_input,
         lot_name=payload.name,
         projection_years=payload.projection_years,
+        surface_ha=payload.area_hectares,
         include_audit=payload.include_audit,
     )
 

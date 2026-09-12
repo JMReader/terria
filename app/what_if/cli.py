@@ -229,7 +229,7 @@ def run_interactive_what_if_wizard() -> None:
         real_margin = float(m_in) if m_in else 350.0
 
     elif choice == "3":
-        store = SQLiteFieldStore()
+        store = get_field_store()
         fields = store.list()
         if fields:
             print("\n  Campos disponibles en la base de datos:")

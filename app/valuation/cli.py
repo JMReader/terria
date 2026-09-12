@@ -388,25 +388,12 @@ def run_interactive_wizard() -> None:
                 lat, lon = -32.70, -62.10
         elif mode_choice == "3":
             store = get_field_store()
-            all_fields = store.list()
-            official_keywords = ["INTA Marcos", "INTA Manfredi", "Pozo del Carril"]
-            official_fields = []
-            other_fields = []
-            seen_names = set()
-            for f in all_fields:
-                if f.name not in seen_names:
-                    seen_names.add(f.name)
-                    if any(kw.lower() in f.name.lower() for kw in official_keywords):
-                        official_fields.append(f)
-                    else:
-                        other_fields.append(f)
-            fields = official_fields + other_fields
+            fields = store.list()
             if fields:
-                print("\n  Campos disponibles en la base de datos:")
+                print(f"\n  {S.BOLD}Campos reales autoritativos en la base de datos de TERRIA:{S.RESET}")
                 for idx, f in enumerate(fields, start=1):
                     loc = f"{f.locality}, {f.province}" if f.locality and f.province else (f.province or "Argentina")
-                    star = f"{S.BRIGHT_YELLOW}★ {S.RESET}" if f in official_fields else "  "
-                    print(f"    {star}[{idx}] {S.BOLD}{f.name}{S.RESET} ({loc}) - {f.area_hectares:.1f} ha")
+                    print(f"    {S.BRIGHT_GREEN}★ [{idx}]{S.RESET} {S.BOLD}{f.name}{S.RESET} ({loc}) — {S.BRIGHT_YELLOW}{f.area_hectares:.2f} ha{S.RESET}")
                 f_idx_str = input(f"  > Selecciona número [1-{len(fields)}]: ").strip()
                 try:
                     f_idx = int(f_idx_str) - 1
@@ -415,8 +402,8 @@ def run_interactive_wizard() -> None:
                         field_uuid = selected.id
                         geom_data = selected.boundary
                         lot_name = selected.name
-                        default_ha = selected.area_hectares or 350.0
-                        print(f"  ✓ Campo '{lot_name}' seleccionado.")
+                        default_ha = selected.area_hectares or 150.0
+                        print(f"  ✓ Campo '{lot_name}' seleccionado ({default_ha:.2f} ha registradas).")
                 except ValueError:
                     print("  Opción no válida. Usando polígono por defecto.")
             else:
@@ -424,8 +411,9 @@ def run_interactive_wizard() -> None:
                 geom_data = _box_from_centroid(-32.70, -62.10, 500.0)
 
         # Paso 3: Superficie
-        print(f"\n{S.BOLD}{S.BRIGHT_CYAN}[Paso 3 de 5]{S.RESET} {S.BOLD}Superficie del Lote:{S.RESET}")
-        ha_str = input(f"  > Superficie en hectáreas [{default_ha:.1f}]: ").strip()
+        print(f"\n{S.BOLD}{S.BRIGHT_CYAN}[Paso 3 de 5]{S.RESET} {S.BOLD}Superficie del Campo a Valuar (Hectáreas):{S.RESET}")
+        print(f"  {S.DIM}Especifica las hectáreas totales del lote (detectadas automáticamente: {default_ha:.2f} ha){S.RESET}")
+        ha_str = input(f"  > Hectáreas del lote [{default_ha:.2f}]: ").strip()
         try:
             surface_ha = float(ha_str) if ha_str else default_ha
         except ValueError:
@@ -473,6 +461,7 @@ def run_interactive_wizard() -> None:
             lot_name=lot_name,
             projection_years=projection_years,
             field_id=field_uuid,
+            surface_ha=surface_ha,
             include_audit=True,
             allow_network=allow_network,
         )
@@ -593,11 +582,13 @@ def main() -> None:
     if not args.json:
         print(f"\n{Style.CYAN}[*] Procesando valuación de tierra a {args.years} años para '{lot_name}'...{Style.RESET}")
 
+    surface_arg = args.ha if args.ha is not None else (surface if "surface" in locals() else None)
     res = run_land_valuation_projection(
         geometry_data=geom_data,
         lot_name=lot_name,
         projection_years=args.years,
         field_id=field_uuid,
+        surface_ha=surface_arg,
         include_audit=args.audit,
         allow_network=allow_network,
     )

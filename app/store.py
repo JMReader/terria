@@ -25,19 +25,15 @@ class FieldNotFound(Exception):
 
 
 def polygon_area_hectares(boundary: PolygonGeometry | dict) -> float:
-    """Approximate planar area for development; PostGIS is authoritative in Supabase."""
+    """Calcula el área geodésica real en hectáreas mediante la fórmula Shoelace proyectada."""
     if isinstance(boundary, dict):
         coords = boundary.get("coordinates", [])
     else:
         coords = boundary.coordinates
     if not coords or not coords[0]:
         return 0.0
-    ring = coords[0]
-    area = sum(
-        ring[index][0] * ring[index + 1][1] - ring[index + 1][0] * ring[index][1]
-        for index in range(len(ring) - 1)
-    )
-    return round(abs(area) * 6_160.0, 2)
+    from app.what_if.geometry import calculate_shoelace_area_ha
+    return calculate_shoelace_area_ha(coords[0])
 
 
 @dataclass

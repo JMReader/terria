@@ -5,6 +5,11 @@ dejando únicamente los campos agrícolas reales de producción y estaciones exp
 from __future__ import annotations
 
 import sqlite3
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 from app.schemas import FieldCreate, PolygonGeometry
 from app.store import get_field_store
 from app.what_if.cli import PRESETS, _box_from_centroid
@@ -27,8 +32,19 @@ def clean_database() -> None:
     cursor.execute(f"DELETE FROM field_public_timelapse WHERE field_id NOT IN ({placeholders})", real_ids)
     cursor.execute(f"DELETE FROM timelapse_datasets WHERE field_id NOT IN ({placeholders})", real_ids)
     cursor.execute(f"DELETE FROM timelapse_jobs WHERE field_id NOT IN ({placeholders})", real_ids)
-    cursor.execute(f"DELETE FROM field_geometry_versions WHERE field_id NOT IN ({placeholders})", real_ids)
-    cursor.execute(f"DELETE FROM fields WHERE id NOT IN ({placeholders})", real_ids)
+    # Recalcular y persistir hectáreas geodésicas reales con Shoelace
+    from app.what_if.geometry import calculate_shoelace_area_ha
+    import json
+
+    for r in real_rows:
+        f_id, f_name = r[0], r[1]
+        b_raw = cursor.execute("SELECT boundary FROM fields WHERE id = ?", (f_id,)).fetchone()[0]
+        b_data = json.loads(b_raw)
+        ring = b_data.get("coordinates", [[]])[0]
+        real_ha = calculate_shoelace_area_ha(ring)
+        cursor.execute("UPDATE fields SET area_hectares = ? WHERE id = ?", (real_ha, f_id))
+        cursor.execute("UPDATE field_geometry_versions SET area_hectares = ? WHERE field_id = ?", (real_ha, f_id))
+        print(f"  ✓ Hectáreas reales actualizadas para '{f_name}': {real_ha:.2f} ha")
 
     conn.commit()
     conn.close()

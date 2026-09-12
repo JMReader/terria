@@ -41,11 +41,13 @@ def run_land_valuation_projection(
     lot_name: str = "Lote Valuación",
     projection_years: int = 5,
     field_id: UUID | None = None,
+    surface_ha: float | None = None,
     include_audit: bool = True,
     allow_network: bool = True,
 ) -> ValuationResponse:
     """Ejecuta el pipeline completo de valuación y apreciación de la tierra a N años."""
-    c_lat, c_lon, surface_ha, bbox = parse_geometry_input(geometry_data)
+    c_lat, c_lon, calc_surface_ha, bbox = parse_geometry_input(geometry_data)
+    effective_surface_ha = surface_ha if (surface_ha is not None and surface_ha > 0) else calc_surface_ha
 
     current_year = 2026
     target_year = current_year + projection_years
@@ -80,12 +82,12 @@ def run_land_valuation_projection(
     total_appreciation_pct = round(((projected_usd_ha - base_usd_ha) / base_usd_ha) * 100.0, 1)
 
     # Totales financieros para la superficie total del lote
-    total_base_usd = round(base_usd_ha * surface_ha, 2)
-    total_projected_usd = round(projected_usd_ha * surface_ha, 2)
+    total_base_usd = round(base_usd_ha * effective_surface_ha, 2)
+    total_projected_usd = round(projected_usd_ha * effective_surface_ha, 2)
     total_capital_gain_usd = round(total_projected_usd - total_base_usd, 2)
 
     financial_totals = FinancialTotals(
-        surface_ha=surface_ha,
+        surface_ha=effective_surface_ha,
         total_base_value_usd=total_base_usd,
         total_projected_value_usd=total_projected_usd,
         total_capital_gain_usd=total_capital_gain_usd,
@@ -111,7 +113,7 @@ def run_land_valuation_projection(
     lot_summary = {
         "name": lot_name,
         "centroid": [c_lat, c_lon],
-        "surface_ha": surface_ha,
+        "surface_ha": effective_surface_ha,
         "department": base_info.get("department"),
         "province": base_info.get("province"),
     }
