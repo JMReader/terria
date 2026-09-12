@@ -1,0 +1,226 @@
+{
+  "total_fields": 1000,
+  "total_time_seconds": 0.13,
+  "throughput_fields_per_second": 7835.6,
+  "errors_count": 0,
+  "hash_collisions": 0,
+  "unique_provinces_count": 23,
+  "unique_departments_count": 38,
+  "provinces_distribution": {
+    "Buenos Aires": 205,
+    "Cordoba": 161,
+    "Corrientes": 99,
+    "Entre Rios": 96,
+    "Santa Fe": 90,
+    "Salta": 59,
+    "Santiago Del Estero": 47,
+    "Chaco": 40,
+    "Jujuy": 36,
+    "Santa Cruz": 33,
+    "Mendoza": 30,
+    "Formosa": 24,
+    "La Pampa": 18,
+    "Rio Negro": 12,
+    "Chubut": 10,
+    "San Juan": 8,
+    "Neuquen": 6,
+    "La Rioja": 6,
+    "Tucuman": 5,
+    "Tierra Del Fuego": 5,
+    "Catamarca": 4,
+    "Misiones": 3,
+    "San Luis": 3
+  },
+  "top_departments": [
+    {
+      "department": "Rio Cuarto",
+      "province": "Cordoba",
+      "count": 104,
+      "pct": 10.4
+    },
+    {
+      "department": "Anta",
+      "province": "Salta",
+      "count": 59,
+      "pct": 5.9
+    },
+    {
+      "department": "Junin",
+      "province": "Buenos Aires",
+      "count": 58,
+      "pct": 5.8
+    },
+    {
+      "department": "Pergamino",
+      "province": "Buenos Aires",
+      "count": 57,
+      "pct": 5.7
+    },
+    {
+      "department": "Marcos Juarez",
+      "province": "Cordoba",
+      "count": 53,
+      "pct": 5.3
+    },
+    {
+      "department": "Goya",
+      "province": "Corrientes",
+      "count": 52,
+      "pct": 5.2
+    },
+    {
+      "department": "Federacion",
+      "province": "Entre Rios",
+      "count": 49,
+      "pct": 4.9
+    },
+    {
+      "department": "Mercedes",
+      "province": "Corrientes",
+      "count": 47,
+      "pct": 4.7
+    },
+    {
+      "department": "General Obligado",
+      "province": "Santa Fe",
+      "count": 42,
+      "pct": 4.2
+    },
+    {
+      "department": "Chacabuco",
+      "province": "Chaco",
+      "count": 40,
+      "pct": 4.0
+    },
+    {
+      "department": "Robles",
+      "province": "Santiago Del Estero",
+      "count": 40,
+      "pct": 4.0
+    },
+    {
+      "department": "Parana",
+      "province": "Entre Rios",
+      "count": 37,
+      "pct": 3.7
+    },
+    {
+      "department": "San Pedro",
+      "province": "Jujuy",
+      "count": 36,
+      "pct": 3.6
+    },
+    {
+      "department": "Bahia Blanca",
+      "province": "Buenos Aires",
+      "count": 36,
+      "pct": 3.6
+    },
+    {
+      "department": "Guer Aike",
+      "province": "Santa Cruz",
+      "count": 33,
+      "pct": 3.3
+    },
+    {
+      "department": "Castellanos",
+      "province": "Santa Fe",
+      "count": 33,
+      "pct": 3.3
+    },
+    {
+      "department": "San Rafael",
+      "province": "Mendoza",
+      "count": 30,
+      "pct": 3.0
+    },
+    {
+      "department": "Tres Arroyos",
+      "province": "Buenos Aires",
+      "count": 30,
+      "pct": 3.0
+    },
+    {
+      "department": "Pilcomayo",
+      "province": "Formosa",
+      "count": 24,
+      "pct": 2.4
+    },
+    {
+      "department": "Chascomus",
+      "province": "Buenos Aires",
+      "count": 21,
+      "pct": 2.1
+    }
+  ],
+  "financial_aggregates": {
+    "total_surface_ha": 1745321.61,
+    "total_base_capital_usd": 9128297293.65,
+    "total_projected_capital_usd": 10629579108.78,
+    "total_gain_usd": 1501281815.13,
+    "macro_portfolio_roi_pct": 16.45
+  },
+  "distributions": {
+    "base_value_usd_ha": {
+      "min": 408.69,
+      "p10": 2317.09,
+      "p25": 3082.26,
+      "median": 5050.51,
+      "mean": 5221.55,
+      "p75": 8559.14,
+      "p90": 9035.41,
+      "max": 9604.0
+    },
+    "projected_value_usd_ha": {
+      "min": 462.06,
+      "p10": 2645.28,
+      "p25": 3599.29,
+      "median": 5788.17,
+      "mean": 6080.93,
+      "p75": 9937.77,
+      "p90": 10524.2,
+      "max": 11290.8
+    },
+    "logistic_multiplier": {
+      "min": 1.0,
+      "p10": 1.0,
+      "p25": 1.0,
+      "median": 1.0,
+      "mean": 1.0,
+      "p75": 1.0,
+      "p90": 1.0,
+      "max": 1.15
+    },
+    "agronomic_multiplier": {
+      "min": 1.02,
+      "p10": 1.034,
+      "p25": 1.0432,
+      "median": 1.052,
+      "mean": 1.05,
+      "p75": 1.054,
+      "p90": 1.0684,
+      "max": 1.0704
+    },
+    "roi_percentage": {
+      "min": 12.62,
+      "p10": 14.16,
+      "p25": 15.18,
+      "median": 16.15,
+      "mean": 16.33,
+      "p75": 16.37,
+      "p90": 17.96,
+      "max": 33.68
+    },
+    "distance_to_highway_km": {
+      "min": 3.6,
+      "p10": 30.0,
+      "p25": 50.7,
+      "median": 83.7,
+      "mean": 97.17,
+      "p75": 122.9,
+      "p90": 173.7,
+      "max": 454.8
+    }
+  },
+  "exceptions": []
+}
