@@ -8,8 +8,10 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 
 from app.config import settings
 from app.store import FieldNotFound, get_field_store
+from app.timelapse.monthly import build_monthly_series
 from app.timelapse.repository import timelapse_repository
 from app.timelapse.schemas import (
+    MonthlySummary,
     PublicTimelapseManifest,
     TimelapseDatasetSummary,
     TimelapseFrame,
@@ -276,6 +278,26 @@ def publish_timelapse(field_id: UUID, dataset_id: UUID, request: Request) -> dic
         "dataset_id": str(dataset_id),
         "public_url": f"/v1/public/fields/{stored.value.public_slug}/timelapse",
     }
+
+
+@router.get(
+    "/v1/public/fields/{public_slug}/monthly",
+    response_model=list[MonthlySummary],
+    summary="Monthly tracking series (NDVI + weather) for a published field",
+    tags=["Public fields"],
+)
+def get_public_monthly(public_slug: str, request: Request) -> list[MonthlySummary]:
+    try:
+        stored = field_store.get_public(public_slug)
+    except FieldNotFound:
+        raise _field_not_found(request) from None
+
+    manifest = timelapse_repository.get_published_dataset_for_field(stored.value.id)
+    if not manifest:
+        raise _timelapse_not_found(
+            request, "No timelapse dataset has been published for this field"
+        )
+    return build_monthly_series([manifest])
 
 
 @router.get(

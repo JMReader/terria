@@ -643,6 +643,16 @@ class PostgresTimelapseRepository:
                 .values(unpublished_at=now)
             )
 
+            # `datasets.public_slug` es único: se limpia el de las versiones
+            # anteriores antes de asignarlo al dataset que se publica.
+            conn.execute(
+                datasets_table.update()
+                .where(
+                    datasets_table.c.field_id == field_id,
+                    datasets_table.c.id != dataset_id,
+                )
+                .values(is_public=False, public_slug=None)
+            )
             conn.execute(
                 datasets_table.update()
                 .where(datasets_table.c.id == dataset_id)

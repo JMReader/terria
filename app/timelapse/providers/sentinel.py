@@ -154,6 +154,32 @@ class Sentinel2Provider:
         pct = percentile
         return NdviMetrics(mean=round(sum(values) / len(values), 4), p10=round(pct(.10), 4), p90=round(pct(.90), 4)), round(len(values) / (width * height), 4), len(values)
 
+    def _search_catalogue(self, client: httpx.Client, token: str, search: dict[str, Any]) -> list[dict[str, Any]]:
+        """Recorre el catálogo STAC del CDSE siguiendo el token `next` de paginación.
+
+        Sin esto, un único `limit` recortaba la campaña a las primeras escenas.
+        """
+        items: list[dict[str, Any]] = []
+        body = dict(search)
+        while True:
+            response = client.post(
+                settings.cdse_catalogue_url,
+                json=body,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            items.extend(data.get("features", []))
+            if len(items) >= settings.cdse_max_scenes:
+                break
+            next_link = next(
+                (link for link in data.get("links", []) if link.get("rel") == "next"), None
+            )
+            if not next_link or not next_link.get("body"):
+                break
+            body = next_link["body"]
+        return items[: settings.cdse_max_scenes]
+
     def fetch_frames(self, field_id: UUID, dataset_id: UUID, boundary_coords: list[list[list[float]]], start_date: date, end_date: date) -> tuple[list[TimelapseFrame], list[TimelapseSource], list[str]]:
         if not self.has_credentials():
             return [], [], ["SATELLITE_CREDENTIALS_MISSING: Configure CDSE_CLIENT_ID and CDSE_CLIENT_SECRET."]
@@ -161,12 +187,10 @@ class Sentinel2Provider:
         if not token:
             return [], [], ["SATELLITE_AUTH_FAILED: Failed to obtain a CDSE access token."]
         source = TimelapseSource(id="copernicus-sentinel-2-l2a", provider="Copernicus Data Space Ecosystem (CDSE)", dataset="Sentinel-2 MSI Level-2A (Surface Reflectance)", model="L2A Bottom-Of-Atmosphere", resolution="10m (B02, B03, B04, B08); 20m SCL", retrieved_at=datetime.now(timezone.utc), documentation_url="https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/S2L2A.html", attribution="Copernicus Sentinel data processed by TERRIA")
-        search = {"collections": ["sentinel-2-l2a"], "intersects": {"type": "Polygon", "coordinates": boundary_coords}, "datetime": f"{start_date.isoformat()}T00:00:00Z/{end_date.isoformat()}T23:59:59Z", "query": {"eo:cloud_cover": {"lte": 70}}, "sortby": [{"field": "datetime", "direction": "asc"}], "limit": settings.cdse_max_scenes}
+        search = {"collections": ["sentinel-2-l2a"], "intersects": {"type": "Polygon", "coordinates": boundary_coords}, "datetime": f"{start_date.isoformat()}T00:00:00Z/{end_date.isoformat()}T23:59:59Z", "query": {"eo:cloud_cover": {"lte": 70}}, "sortby": [{"field": "datetime", "direction": "asc"}], "limit": min(settings.cdse_page_size, settings.cdse_max_scenes)}
         try:
             with httpx.Client(timeout=90) as client:
-                response = client.post(settings.cdse_catalogue_url, json=search, headers={"Authorization": f"Bearer {token}"})
-                response.raise_for_status()
-                items = response.json().get("features", [])
+                items = self._search_catalogue(client, token, search)
                 frames: list[TimelapseFrame] = []
                 reasons: list[str] = []
                 seen_days: set[date] = set()

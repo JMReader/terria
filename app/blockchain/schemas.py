@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import Field
 
-from app.schemas import StrictModel
+from app.schemas import PolygonGeometry, StrictModel
 
 CertificationStatus = Literal["draft", "pending_anchor", "anchored", "failed", "superseded"]
 AnchorStatus = Literal["pending", "confirmed", "failed"]
@@ -57,3 +57,34 @@ class CertificationVerifyResponse(StrictModel):
     on_chain_memo: str | None
     tx_signature: str | None
     explorer_url: str | None
+
+
+class CertificationDocumentField(StrictModel):
+    id: UUID
+    name: str
+    description: str | None = None
+    locality: str | None = None
+    province: str | None = None
+    area_hectares: float
+    boundary: PolygonGeometry | None = None
+
+
+class CertificationDocumentResponse(StrictModel):
+    """Documento completo para renderizar el certificado (ficha pública)."""
+
+    cert_uid: str
+    version: int
+    status: CertificationStatus
+    schema_version: str
+    algorithm_version: str
+    period_from: int
+    period_to: int
+    content_hash: str
+    prev_content_hash: str | None
+    issued_at: datetime | None
+    created_at: datetime
+    verification_status: VerifyStatus
+    field: CertificationDocumentField
+    anchor: AnchorResponse | None = None
+    snapshot: dict[str, Any] = Field(default_factory=dict)
+    hero_image_url: str | None = None

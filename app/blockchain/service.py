@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+import logging
 from uuid import UUID, uuid4
 
 from app.blockchain.canonical import canonical_bytes, sha256_hex
+from app.blockchain.hero import build_ndvi_preview
 from app.blockchain.payload import build_memo, parse_memo
 from app.blockchain.provider import explorer_url, get_anchor_provider
+from app.blockchain.storage import SupabasePayloadStorage
 from app.blockchain.repository import (
     AnchorRecord,
     CertificationRecord,
@@ -13,14 +17,20 @@ from app.blockchain.repository import (
 )
 from app.blockchain.schemas import (
     AnchorResponse,
+    CertificationDocumentField,
+    CertificationDocumentResponse,
     CertificationResponse,
     CertificationVerifyResponse,
 )
 from app.blockchain.snapshot import build_observations, build_snapshot, build_sources
 from app.config import settings
 from app.schemas import FieldResponse
+from app.store import FieldNotFound, get_field_store
+from app.timelapse.monthly import build_monthly_series
 from app.timelapse.repository import timelapse_repository
 from app.timelapse.schemas import TimelapseDatasetSummary
+
+logger = logging.getLogger(__name__)
 
 
 def _repo():
@@ -90,6 +100,7 @@ def issue_certification(
         schema_version=settings.cert_schema_version,
         prev_hash=prev_hash,
         observations=build_observations(manifests),
+        monthly=[summary.model_dump() for summary in build_monthly_series(manifests)],
         sources=build_sources(manifests),
     )
     payload = canonical_bytes(snapshot)
@@ -196,3 +207,152 @@ def verify_certification(cert_uid: str) -> CertificationVerifyResponse | None:
         tx_signature=tx_signature,
         explorer_url=explorer_url(anchor.cluster, tx_signature) if anchor else None,
     )
+
+
+def _document_field(
+    field_id: UUID, snapshot: dict
+) -> CertificationDocumentField:
+    try:
+        field = get_field_store().get(field_id).value
+        return CertificationDocumentField(
+            id=field.id,
+            name=field.name,
+            description=field.description,
+            locality=field.locality,
+            province=field.province,
+            area_hectares=field.area_hectares,
+            boundary=field.boundary,
+        )
+    except FieldNotFound:
+        field_meta = snapshot.get("field", {}) if isinstance(snapshot, dict) else {}
+        return CertificationDocumentField(
+            id=field_id,
+            name=field_meta.get("name") or f"Campo {str(field_id)[:8]}",
+            area_hectares=float(field_meta.get("area_ha") or 0.0),
+            province=field_meta.get("province"),
+        )
+
+
+def build_certification_document(cert_uid: str) -> CertificationDocumentResponse | None:
+    """Ficha pública completa del certificado: campo + snapshot + ancla on-chain."""
+    record = _repo().get_by_cert_uid(cert_uid)
+    if record is None:
+        return None
+
+    payload = _repo().get_payload(record.id)
+    snapshot: dict = {}
+    if payload is not None:
+        try:
+            snapshot = json.loads(payload)
+        except (ValueError, TypeError):
+            snapshot = {}
+
+    anchor = _repo().get_anchor(record.id)
+    verification = verify_certification(cert_uid)
+
+    return CertificationDocumentResponse(
+        cert_uid=record.cert_uid,
+        version=record.version,
+        status=record.status,  # type: ignore[arg-type]
+        schema_version=record.schema_version,
+        algorithm_version=record.algorithm_version,
+        period_from=record.period_from,
+        period_to=record.period_to,
+        content_hash=record.content_hash or "",
+        prev_content_hash=record.prev_content_hash,
+        issued_at=record.issued_at,
+        created_at=record.created_at,
+        verification_status=verification.status if verification else "pending",
+        field=_document_field(record.field_id, snapshot),
+        anchor=_anchor_response(anchor),
+        snapshot=snapshot,
+        hero_image_url=f"/v1/public/certifications/{record.cert_uid}/hero.png",
+    )
+
+
+def _local_hero_image(snapshot: dict) -> bytes | None:
+    """PNG NDVI ya generado en disco por el worker de timelapse."""
+    for dataset in snapshot.get("datasets", []):
+        try:
+            manifest = timelapse_repository.get_dataset(UUID(str(dataset.get("id"))))
+        except (ValueError, TypeError):
+            continue
+        if manifest is None:
+            continue
+        usable = [frame for frame in manifest.frames if frame.usable and frame.ndvi.mean is not None]
+        if not usable:
+            continue
+        best = max(usable, key=lambda frame: frame.ndvi.mean or 0.0)
+        path = settings.assets_dir / f"{best.id}_ndvi.png"
+        if path.exists():
+            return path.read_bytes()
+    return None
+
+
+def _asset_storage() -> SupabasePayloadStorage | None:
+    if not (settings.supabase_url and settings.supabase_service_role_key):
+        return None
+    try:
+        return SupabasePayloadStorage(bucket=settings.assets_storage_bucket)
+    except RuntimeError:
+        return None
+
+
+def _generate_hero_image(field_id: UUID, snapshot: dict) -> bytes | None:
+    try:
+        field = get_field_store().get(field_id).value
+    except FieldNotFound:
+        return None
+
+    datasets = snapshot.get("datasets", [])
+    if datasets and datasets[0].get("start") and datasets[0].get("end"):
+        start_date, end_date = datasets[0]["start"], datasets[0]["end"]
+    else:
+        period = snapshot.get("period", {})
+        if not (period.get("from") and period.get("to")):
+            return None
+        start_date, end_date = f"{period['from']}-10-01", f"{period['to']}-04-30"
+    return build_ndvi_preview(field.boundary, start_date, end_date)
+
+
+def get_certification_hero_image(cert_uid: str) -> bytes | None:
+    """PNG NDVI del certificado: disco local → Supabase Storage → generado y cacheado.
+
+    El PNG es ilustrativo (no forma parte del hash del snapshot). Se genera con
+    Sentinel-2 vía Planetary Computer, sin cuenta Copernicus.
+    """
+    record = _repo().get_by_cert_uid(cert_uid)
+    if record is None:
+        return None
+    payload = _repo().get_payload(record.id)
+    if payload is None:
+        return None
+    try:
+        snapshot = json.loads(payload)
+    except (ValueError, TypeError):
+        return None
+
+    local = _local_hero_image(snapshot)
+    if local is not None:
+        return local
+
+    storage = _asset_storage()
+    storage_ref = f"{settings.assets_storage_bucket}/certificates/{cert_uid}.png"
+    if storage is not None:
+        try:
+            cached = storage.download(storage_ref)
+        except Exception:  # noqa: BLE001 - a storage outage must not break the certificate
+            cached = None
+        if cached is not None:
+            return cached
+
+    if not settings.cert_hero_generate:
+        return None
+
+    generated = _generate_hero_image(record.field_id, snapshot)
+    if generated is not None and storage is not None:
+        try:
+            storage.upload(f"certificates/{cert_uid}.png", generated, "image/png")
+        except Exception as exc:  # noqa: BLE001 - caching is best-effort
+            logger.warning("Could not cache hero image for %s: %s", cert_uid, exc)
+    return generated

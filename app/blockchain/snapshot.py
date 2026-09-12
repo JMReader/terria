@@ -76,6 +76,7 @@ def build_snapshot(
     prev_hash: str | None,
     issued_at: datetime | None = None,
     observations: list[dict[str, Any]] | None = None,
+    monthly: list[dict[str, Any]] | None = None,
     sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     issued = (issued_at or datetime.now(timezone.utc)).replace(microsecond=0).isoformat()
@@ -100,6 +101,7 @@ def build_snapshot(
             for dataset in datasets
         ],
         "observations": observations or [],
+        "monthly": monthly or [],
         "sources": sources or [],
         "issued_at": issued,
         "prev_snapshot_hash": prev_hash,

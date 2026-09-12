@@ -5,61 +5,543 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Certificación TERRIA</title>
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
-    .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; color: #fff; font-weight: 600; background: #555; }
-    .verified { background: #0a7d33; }
-    .tampered { background: #b00020; }
-    .pending, .rpc_unavailable { background: #8a6d00; }
-    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
-    td, th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #8883; vertical-align: top; }
-    code { background: #8882; padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+    :root {
+      --ink: #14261c;
+      --muted: #5b6b61;
+      --line: #d9e2db;
+      --brand: #0a7d33;
+      --brand-dark: #075c25;
+      --paper: #ffffff;
+      --bg: #eef2ee;
+      --verified: #0a7d33;
+      --tampered: #b00020;
+      --pending: #8a6d00;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Helvetica Neue", Arial, system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      max-width: 900px;
+      margin: 18px auto 0;
+      padding: 0 16px;
+    }
+    button {
+      font: inherit;
+      font-weight: 600;
+      border: 1px solid var(--brand);
+      background: var(--brand);
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.ghost { background: #fff; color: var(--brand); }
+    button:hover { filter: brightness(0.95); }
+
+    .sheet {
+      max-width: 900px;
+      margin: 18px auto 40px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(20, 38, 28, 0.08);
+      overflow: hidden;
+    }
+    .sheet__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 28px 34px 22px;
+      border-bottom: 3px solid var(--brand);
+      background: linear-gradient(180deg, #f6faf7, #ffffff);
+    }
+    .brand { display: flex; flex-direction: column; gap: 2px; }
+    .brand__name { font-size: 26px; font-weight: 800; letter-spacing: 3px; color: var(--brand-dark); }
+    .brand__tag { font-size: 12px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--muted); }
+    .doc-title { text-align: right; }
+    .doc-title h1 { margin: 0; font-size: 19px; }
+    .doc-title p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 5px 13px;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 1px;
+      background: var(--pending);
+    }
+    .verified { background: var(--verified); }
+    .tampered { background: var(--tampered); }
+    .pending, .rpc_unavailable { background: var(--pending); }
+    .loading { background: var(--muted); }
+
+    .sheet__body { padding: 26px 34px 34px; }
+    section { margin-bottom: 26px; }
+    h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--muted);
+      margin: 0 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .field-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 24px; }
+    .field-name { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+    .field-loc { color: var(--muted); font-size: 14px; }
+    .field-desc { margin: 12px 0 0; font-size: 13px; color: #33443a; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #fbfdfb;
+    }
+    .stat__k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+    .stat__v { font-size: 20px; font-weight: 700; margin-top: 4px; }
+    .stat__s { font-size: 11px; color: var(--muted); }
+
+    .kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .kv td, .kv th { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .kv th { width: 34%; color: var(--muted); font-weight: 600; }
+
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+    table.data th:first-child, table.data td:first-child { text-align: left; }
+    table.data thead th { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.6px; }
+    table.data tbody tr:nth-child(even) { background: #f7faf8; }
+    .muted { color: var(--muted); }
+
+    .integrity code {
+      display: block;
+      background: #f2f6f3;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      word-break: break-all;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+    }
+    .integrity .kv th { width: 26%; }
+    a { color: var(--brand-dark); }
+    .hero {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      image-rendering: pixelated;
+      background: #0b1a12;
+    }
+    .footprint {
+      width: 100%;
+      max-width: 460px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f4f8f4;
+    }
+    .footprint polygon { fill: #0a7d33; fill-opacity: 0.16; stroke: #0a7d33; stroke-width: 2; }
+    .footprint circle { fill: #075c25; }
+    .hero-caption { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .note {
+      font-size: 12px;
+      color: var(--muted);
+      border-left: 3px solid var(--brand);
+      padding: 8px 14px;
+      background: #f6faf7;
+      border-radius: 0 8px 8px 0;
+    }
+    .error { color: var(--tampered); }
+
+    @media (max-width: 720px) {
+      .field-grid, .stats { grid-template-columns: 1fr; }
+      .sheet__head { flex-direction: column; }
+      .doc-title { text-align: left; }
+    }
+
+    @media print {
+      :root { --bg: #fff; }
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        max-width: none;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .sheet__head { padding: 10px 0 14px; }
+      .sheet__body { padding: 10px 0 0; }
+      section { break-inside: avoid; }
+      table.data tbody tr:nth-child(even) { background: #f7faf8; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .badge, .stat, .note, code { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4; margin: 14mm; }
+    }
   </style>
 </head>
 <body>
-  <h1>Certificación TERRIA</h1>
-  <p><span id="badge" class="badge">cargando…</span></p>
-  <table>
-    <tr><th>Certificado</th><td><code id="cert-uid"></code></td></tr>
-    <tr><th>Campo</th><td id="field-id"></td></tr>
-    <tr><th>Versión</th><td id="version"></td></tr>
-    <tr><th>Hash certificado</th><td><code id="expected-hash"></code></td></tr>
-    <tr><th>Hash recomputado</th><td><code id="recomputed-hash"></code></td></tr>
-    <tr><th>Memo on-chain</th><td><code id="on-chain-memo"></code></td></tr>
-    <tr><th>Transacción</th><td><a id="explorer" target="_blank" rel="noreferrer"></a></td></tr>
-  </table>
-  <p id="note">La blockchain prueba <b>existencia e integridad</b> del registro, no la veracidad de los datos.</p>
+  <div class="toolbar no-print">
+    <button class="ghost" id="refresh" type="button">Actualizar</button>
+    <button class="ghost" id="print" type="button">Imprimir</button>
+    <button id="download" type="button">Descargar PDF</button>
+  </div>
+
+  <article class="sheet" id="sheet">
+    <header class="sheet__head">
+      <div class="brand">
+        <span class="brand__name">TERRIA</span>
+        <span class="brand__tag">Trazabilidad verificable de la tierra</span>
+      </div>
+      <div class="doc-title">
+        <h1>Certificado de trazabilidad</h1>
+        <p id="doc-subtitle">Cargando…</p>
+        <span id="badge" class="badge loading">CARGANDO</span>
+      </div>
+    </header>
+
+    <div class="sheet__body">
+      <section id="field-section" hidden>
+        <h2>Campo certificado</h2>
+        <div class="field-grid">
+          <div>
+            <p class="field-name" id="field-name">—</p>
+            <p class="field-loc" id="field-loc">—</p>
+            <p class="field-desc" id="field-desc"></p>
+          </div>
+          <table class="kv">
+            <tr><th>Superficie</th><td id="field-area">—</td></tr>
+            <tr><th>Jurisdicción</th><td id="field-province">—</td></tr>
+            <tr><th>Período</th><td id="field-period">—</td></tr>
+            <tr><th>Versión</th><td id="field-version">—</td></tr>
+            <tr><th>Emitido</th><td id="field-issued">—</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section id="summary-section" hidden>
+        <h2>Resumen del historial certificado</h2>
+        <div class="stats">
+          <div class="stat"><div class="stat__k">Observaciones</div><div class="stat__v" id="s-obs">—</div><div class="stat__s" id="s-obs-sub"></div></div>
+          <div class="stat"><div class="stat__k">NDVI promedio</div><div class="stat__v" id="s-ndvi">—</div><div class="stat__s">sobre escenas usables</div></div>
+          <div class="stat"><div class="stat__k">NDVI máximo</div><div class="stat__v" id="s-ndvi-max">—</div><div class="stat__s">pico de vigor</div></div>
+          <div class="stat"><div class="stat__k">Lluvia acumulada</div><div class="stat__v" id="s-precip">—</div><div class="stat__s">en el período</div></div>
+        </div>
+      </section>
+
+      <section id="monthly-section" hidden>
+        <h2>Seguimiento mensual</h2>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>Campaña</th>
+              <th>Escenas (usables)</th>
+              <th>NDVI medio</th>
+              <th>NDVI máx</th>
+              <th>Lluvia (mm)</th>
+              <th>T media (°C)</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-body"></tbody>
+        </table>
+      </section>
+
+      <section id="hero-section" hidden>
+        <h2>Última imagen satelital</h2>
+        <img class="hero" id="hero" alt="NDVI del campo" />
+        <p class="hero-caption" id="hero-caption"></p>
+      </section>
+
+      <section id="footprint-section" hidden>
+        <h2>Geometría certificada</h2>
+        <svg id="footprint" class="footprint" viewBox="0 0 400 260" role="img" aria-label="Huella del campo"></svg>
+        <p class="hero-caption" id="footprint-caption"></p>
+      </section>
+
+      <section id="observations-section" hidden>
+        <h2>Observaciones fechadas</h2>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>NDVI medio</th>
+              <th>NDVI p10</th>
+              <th>NDVI p90</th>
+              <th>Lluvia (mm)</th>
+              <th>Lluvia 7d (mm)</th>
+              <th>T mín (°C)</th>
+              <th>T máx (°C)</th>
+              <th>Satélite</th>
+            </tr>
+          </thead>
+          <tbody id="observations-body"></tbody>
+        </table>
+      </section>
+
+      <section id="sources-section" hidden>
+        <h2>Fuentes de datos</h2>
+        <table class="kv">
+          <tbody id="sources-body"></tbody>
+        </table>
+      </section>
+
+      <section id="integrity-section" hidden>
+        <h2>Integridad y anclaje on-chain</h2>
+        <div class="integrity">
+          <table class="kv">
+            <tr><th>Certificado</th><td><span id="i-cert">—</span></td></tr>
+            <tr><th>Hash del contenido</th><td id="i-hash-cell"><code id="i-hash">—</code></td></tr>
+            <tr><th>Hash versión anterior</th><td id="i-prev-cell"><code id="i-prev">—</code></td></tr>
+            <tr><th>Memo on-chain</th><td><code id="i-memo">—</code></td></tr>
+            <tr><th>Red</th><td id="i-cluster">—</td></tr>
+            <tr><th>Transacción</th><td id="i-tx-cell"><a id="i-tx" target="_blank" rel="noreferrer"></a></td></tr>
+            <tr><th>Algoritmo</th><td id="i-algo">—</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <p class="note">
+        La blockchain prueba <b>existencia e integridad</b> del registro certificado: que existía
+        en una fecha y que no fue alterado desde entonces. No certifica por sí misma la veracidad
+        del dato agronómico.
+      </p>
+      <p class="note muted" id="error-note" hidden></p>
+    </div>
+  </article>
+
   <script>
     const uid = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() || "");
     const $ = (id) => document.getElementById(id);
-    $("cert-uid").textContent = uid;
 
-    fetch(`/v1/public/certifications/${encodeURIComponent(uid)}/verify`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`verify failed: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        const badge = $("badge");
-        badge.textContent = data.status.toUpperCase();
-        badge.classList.add(data.status);
-        $("field-id").textContent = data.field_id;
-        $("version").textContent = data.version;
-        $("expected-hash").textContent = data.expected_hash || "—";
-        $("recomputed-hash").textContent = data.recomputed_hash || "—";
-        $("on-chain-memo").textContent = data.on_chain_memo || "—";
-        if (data.explorer_url) {
-          const link = $("explorer");
-          link.href = data.explorer_url;
-          link.textContent = data.tx_signature;
-        } else {
-          $("explorer").textContent = data.tx_signature || "sin ancla pública (modo local)";
-        }
-      })
-      .catch((err) => {
-        $("badge").textContent = "ERROR";
-        $("note").textContent = String(err);
+    const STATUS_LABEL = {
+      verified: "VERIFICADO",
+      tampered: "ALTERADO",
+      pending: "PENDIENTE",
+      rpc_unavailable: "RPC NO DISPONIBLE",
+    };
+
+    const num = (value, factor, digits) => {
+      if (value === null || value === undefined) return "—";
+      return (value / factor).toFixed(digits);
+    };
+
+    const fmtDate = (iso) => {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+    };
+
+    function setBadge(status) {
+      const badge = $("badge");
+      badge.className = "badge " + status;
+      badge.textContent = STATUS_LABEL[status] || String(status).toUpperCase();
+    }
+
+    function renderSummary(observations) {
+      const usable = observations.filter((o) => o.satellite_usable && o.ndvi_mean_x1000 !== null);
+      const ndviMeans = usable.map((o) => o.ndvi_mean_x1000 / 1000);
+      const mean = ndviMeans.length ? ndviMeans.reduce((a, b) => a + b, 0) / ndviMeans.length : null;
+      const max = ndviMeans.length ? Math.max(...ndviMeans) : null;
+      const precipValues = observations.map((o) => o.precip_mm_x10).filter((v) => v !== null && v !== undefined);
+      const precip = precipValues.reduce((a, b) => a + b, 0) / 10;
+
+      $("s-obs").textContent = observations.length;
+      $("s-obs-sub").textContent = usable.length + " con satélite usable";
+      $("s-ndvi").textContent = mean === null ? "—" : mean.toFixed(3);
+      $("s-ndvi-max").textContent = max === null ? "—" : max.toFixed(3);
+      $("s-precip").textContent = precipValues.length ? precip.toFixed(1) + " mm" : "—";
+      $("summary-section").hidden = observations.length === 0;
+    }
+
+    function renderObservations(observations) {
+      const body = $("observations-body");
+      body.innerHTML = "";
+      observations
+        .slice()
+        .sort((a, b) => (a.date < b.date ? -1 : 1))
+        .forEach((o) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + fmtDate(o.date) + "</td>" +
+            "<td>" + num(o.ndvi_mean_x1000, 1000, 3) + "</td>" +
+            "<td>" + num(o.ndvi_p10_x1000, 1000, 3) + "</td>" +
+            "<td>" + num(o.ndvi_p90_x1000, 1000, 3) + "</td>" +
+            "<td>" + num(o.precip_mm_x10, 10, 1) + "</td>" +
+            "<td>" + num(o.precip_7d_mm_x10, 10, 1) + "</td>" +
+            "<td>" + num(o.temp_min_c_x10, 10, 1) + "</td>" +
+            "<td>" + num(o.temp_max_c_x10, 10, 1) + "</td>" +
+            "<td class='" + (o.satellite_usable ? "" : "muted") + "'>" +
+              (o.satellite_usable ? "usable" : "descartada") + "</td>";
+          body.appendChild(tr);
+        });
+      $("observations-section").hidden = observations.length === 0;
+    }
+
+    function renderSources(sources) {
+      const body = $("sources-body");
+      body.innerHTML = "";
+      sources.forEach((s) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<th>" + (s.provider || s.id) + "</th>" +
+          "<td>" + (s.dataset || "") +
+          (s.retrieved_at ? "<br><span class='muted'>obtenido " + fmtDate(s.retrieved_at) + "</span>" : "") +
+          "</td>";
+        body.appendChild(tr);
       });
+      $("sources-section").hidden = sources.length === 0;
+    }
+
+    function renderMonthly(monthly) {
+      const body = $("monthly-body");
+      body.innerHTML = "";
+      monthly.forEach((m) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + m.month + "</td>" +
+          "<td>" + m.campaign + "</td>" +
+          "<td>" + m.usable_scenes + " / " + m.satellite_scenes + "</td>" +
+          "<td>" + num(m.ndvi_mean_x1000, 1000, 3) + "</td>" +
+          "<td>" + num(m.ndvi_max_x1000, 1000, 3) + "</td>" +
+          "<td>" + num(m.precip_mm_x10, 10, 1) + "</td>" +
+          "<td>" + num(m.temp_mean_c_x10, 10, 1) + "</td>";
+        body.appendChild(tr);
+      });
+      $("monthly-section").hidden = monthly.length === 0;
+    }
+
+    function renderFootprint(boundary) {
+      const ring = boundary && boundary.coordinates && boundary.coordinates[0];
+      if (!ring || ring.length < 3) return;
+      const xs = ring.map((p) => p[0]);
+      const ys = ring.map((p) => p[1]);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const w = maxX - minX || 1e-6, h = maxY - minY || 1e-6;
+      const W = 400, H = 260, pad = 24;
+      const scale = Math.min((W - 2 * pad) / w, (H - 2 * pad) / h);
+      const offX = (W - w * scale) / 2, offY = (H - h * scale) / 2;
+      const project = ([x, y]) => [
+        (offX + (x - minX) * scale).toFixed(1),
+        (offY + (maxY - y) * scale).toFixed(1),
+      ];
+      const points = ring.map(project).map((p) => p.join(",")).join(" ");
+      const [cx, cy] = project([(minX + maxX) / 2, (minY + maxY) / 2]);
+      const svg = $("footprint");
+      svg.innerHTML =
+        "<polygon points='" + points + "'></polygon>" +
+        "<circle cx='" + cx + "' cy='" + cy + "' r='4'></circle>";
+      $("footprint-caption").textContent =
+        "Polígono del campo tal como quedó congelado en el snapshot (WGS84, " +
+        Math.abs(maxX - minX).toFixed(3) + "° × " + Math.abs(maxY - minY).toFixed(3) + "°).";
+      $("footprint-section").hidden = false;
+    }
+
+    function renderIntegrity(doc, verify) {
+      $("i-cert").textContent = doc.cert_uid;
+      $("i-hash").textContent = doc.content_hash;
+      if (doc.prev_content_hash) {
+        $("i-prev").textContent = doc.prev_content_hash;
+      } else {
+        $("i-prev").textContent = "— (primera versión)";
+      }
+      $("i-memo").textContent = (verify && verify.on_chain_memo) || "—";
+      $("i-cluster").textContent = doc.anchor ? doc.anchor.cluster : "—";
+      $("i-algo").textContent = doc.algorithm_version + " · " + doc.schema_version;
+
+      const link = $("i-tx");
+      const url = (doc.anchor && doc.anchor.explorer_url) || (verify && verify.explorer_url);
+      const sig = (doc.anchor && doc.anchor.tx_signature) || (verify && verify.tx_signature);
+      if (url && sig) {
+        link.href = url;
+        link.textContent = sig;
+      } else {
+        $("i-tx-cell").textContent = sig || "sin ancla pública (modo local)";
+      }
+      $("integrity-section").hidden = false;
+    }
+
+    function renderDocument(doc, verify) {
+      const f = doc.field;
+      $("field-name").textContent = f.name;
+      const loc = [f.locality, f.province].filter(Boolean).join(", ");
+      $("field-loc").textContent = loc || "Ubicación no informada";
+      $("field-desc").textContent = f.description || "";
+      $("field-area").textContent = f.area_hectares.toFixed(2) + " ha";
+      $("field-province").textContent = f.province || "—";
+      $("field-period").textContent = doc.period_from + " – " + doc.period_to;
+      $("field-version").textContent = "V" + doc.version;
+      $("field-issued").textContent = fmtDate(doc.issued_at || doc.created_at);
+      $("doc-subtitle").textContent = "Certificado " + doc.cert_uid.slice(0, 8) + " · V" + doc.version;
+      $("error-note").hidden = true;
+      $("field-section").hidden = false;
+
+      const snapshot = doc.snapshot || {};
+      const observations = snapshot.observations || [];
+      renderSummary(observations);
+      renderMonthly(snapshot.monthly || []);
+      renderObservations(observations);
+      renderSources(snapshot.sources || []);
+
+      renderFootprint(f.boundary);
+
+      if (doc.hero_image_url) {
+        const img = $("hero");
+        img.onerror = () => { $("hero-section").hidden = true; };
+        img.onload = () => { $("hero-section").hidden = false; };
+        img.src = doc.hero_image_url;
+        $("hero-caption").textContent =
+          "Composición NDVI derivada de Sentinel-2 L2A (Copernicus). Escena de mayor vigor del período.";
+      }
+
+      renderIntegrity(doc, verify);
+    }
+
+    function load() {
+      $("doc-subtitle").textContent = "Cargando…";
+      Promise.all([
+        fetch("/v1/public/certifications/" + encodeURIComponent(uid)).then((r) => {
+          if (!r.ok) throw new Error("certificado no encontrado (" + r.status + ")");
+          return r.json();
+        }),
+        fetch("/v1/public/certifications/" + encodeURIComponent(uid) + "/verify")
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ])
+        .then(([doc, verify]) => {
+          setBadge((verify && verify.status) || doc.verification_status);
+          renderDocument(doc, verify);
+        })
+        .catch((err) => {
+          setBadge("tampered");
+          $("badge").className = "badge tampered";
+          $("badge").textContent = "ERROR";
+          const note = $("error-note");
+          note.hidden = false;
+          note.classList.add("error");
+          note.textContent = String(err);
+        });
+    }
+
+    $("download").addEventListener("click", () => {
+      window.open("/v1/public/certifications/" + encodeURIComponent(uid) + ".pdf", "_blank");
+    });
+    $("print").addEventListener("click", () => window.print());
+    $("refresh").addEventListener("click", load);
+    load();
   </script>
 </body>
 </html>

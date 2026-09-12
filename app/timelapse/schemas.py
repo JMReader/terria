@@ -55,6 +55,25 @@ class WeatherDaily(StrictModel):
     missing_reason: str | None = None
 
 
+class MonthlySummary(StrictModel):
+    """Serie mensual de seguimiento del lote (para el trackeo del front).
+
+    Medidas escaladas a enteros (x1000 ndvi, x10 mm/°C) para viajar sin floats.
+    """
+
+    month: str
+    campaign: str
+    satellite_scenes: int
+    usable_scenes: int
+    ndvi_mean_x1000: int | None = None
+    ndvi_max_x1000: int | None = None
+    ndvi_min_x1000: int | None = None
+    precip_mm_x10: int | None = None
+    temp_mean_c_x10: int | None = None
+    temp_min_c_x10: int | None = None
+    temp_max_c_x10: int | None = None
+
+
 class TimelapseSource(StrictModel):
     id: str
     provider: str

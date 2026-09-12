@@ -16,6 +16,13 @@ os.environ["DATABASE_URL"] = ""
 os.environ["DATABASE_DIRECT_URL"] = ""
 os.environ["MIGRATION_DATABASE_URL"] = ""
 
+# Los tests nunca tocan la red: anclaje en el validador local en memoria.
+os.environ["SOLANA_ANCHOR_PROVIDER"] = "local"
+os.environ["SOLANA_ISSUER_SECRET_KEY"] = ""
+
+# Tampoco generan la portada NDVI (Planetary Computer) durante los tests.
+os.environ["CERT_HERO_GENERATE"] = "false"
+
 _TEST_DB_DIR = Path(tempfile.mkdtemp(prefix="terria-tests-"))
 os.environ["TERRIA_DB_PATH"] = str(_TEST_DB_DIR / "terria.db")
 os.environ["TIMELAPSE_STORAGE_DIR"] = str(_TEST_DB_DIR / "storage")

@@ -3,17 +3,21 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
 
+from app.blockchain.pdf import render_certification_pdf
 from app.blockchain.repository import get_certification_repository
 from app.blockchain.schemas import (
     CertificationCreate,
+    CertificationDocumentResponse,
     CertificationResponse,
     CertificationVerifyResponse,
 )
 from app.blockchain.service import (
+    build_certification_document,
     build_certification_response,
+    get_certification_hero_image,
     issue_certification,
     verify_certification,
 )
@@ -134,6 +138,51 @@ def verify_public_certification(cert_uid: str, request: Request) -> Certificatio
     if result is None:
         raise _certification_not_found(request)
     return result
+
+
+@router.get(
+    "/v1/public/certifications/{cert_uid}/hero.png",
+    summary="Best usable NDVI frame for a certification document",
+    include_in_schema=False,
+)
+def get_public_certification_hero(cert_uid: str) -> Response:
+    image = get_certification_hero_image(cert_uid)
+    if image is None:
+        raise HTTPException(status_code=404, detail="No hero image available")
+    return Response(content=image, media_type="image/png")
+
+
+@router.get(
+    "/v1/public/certifications/{cert_uid}.pdf",
+    summary="Download the certification as a print-ready PDF",
+    tags=["Public fields"],
+)
+def get_public_certification_pdf(cert_uid: str, request: Request) -> Response:
+    document = build_certification_document(cert_uid)
+    if document is None:
+        raise _certification_not_found(request)
+    return Response(
+        content=render_certification_pdf(document),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="certificado-terria-{cert_uid}.pdf"'
+        },
+    )
+
+
+@router.get(
+    "/v1/public/certifications/{cert_uid}",
+    response_model=CertificationDocumentResponse,
+    summary="Public certification document: field, snapshot and on-chain anchor",
+    tags=["Public fields"],
+)
+def get_public_certification(
+    cert_uid: str, request: Request
+) -> CertificationDocumentResponse:
+    document = build_certification_document(cert_uid)
+    if document is None:
+        raise _certification_not_found(request)
+    return document
 
 
 @router.get("/cert/{cert_uid}", response_class=HTMLResponse, include_in_schema=False)

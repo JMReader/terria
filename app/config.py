@@ -40,7 +40,8 @@ class Settings(BaseSettings):
     migration_database_url: str | None = None
 
     timelapse_storage_dir: str = "data/storage"
-    timelapse_processing_version: str = "0.2.0"
+    # 0.3.0: paginado del catálogo CDSE (campaña completa) + serie mensual.
+    timelapse_processing_version: str = "0.3.0"
     timelapse_max_image_age_days: int = 10
 
     # ── Copernicus CDSE (Sentinel imagery) ────────────────────────────────────
@@ -50,7 +51,9 @@ class Settings(BaseSettings):
     cdse_catalogue_url: str = "https://stac.dataspace.copernicus.eu/v1/search"
     cdse_process_url: str = "https://sh.dataspace.copernicus.eu/process/v1"
     cdse_statistics_url: str = "https://sh.dataspace.copernicus.eu/statistics/v1"
-    cdse_max_scenes: int = 12
+    # Tope total de escenas por dataset (se pagina el catálogo) y tamaño de página.
+    cdse_max_scenes: int = 200
+    cdse_page_size: int = 100
 
     # ── Weather provider ──────────────────────────────────────────────────────
     weather_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
@@ -63,9 +66,12 @@ class Settings(BaseSettings):
     solana_memo_program_id: str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
     # JSON byte array, base58 o base64. Nunca commitear; sólo variable de entorno.
     solana_issuer_secret_key: str | None = None
-    cert_schema_version: str = "terria.cert/2"
+    cert_schema_version: str = "terria.cert/3"
     cert_algorithm_version: str = "jcs+sha256/1"
     cert_storage_bucket: str = "cert-payloads"
+    # Imagen NDVI de portada del certificado (Supabase Storage).
+    assets_storage_bucket: str = "terria-assets"
+    cert_hero_generate: bool = True
 
     @property
     def use_devnet_anchor(self) -> bool:

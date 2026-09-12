@@ -10,6 +10,7 @@ from app.blockchain.payload import build_memo, parse_memo
 from app.blockchain.snapshot import build_observations, build_sources
 from app.main import app
 from app.schemas import PolygonGeometry
+from app.timelapse.monthly import build_monthly_series, campaign_of
 from app.timelapse.schemas import (
     NdviMetrics,
     TimelapseFrame,
@@ -115,8 +116,51 @@ def test_list_and_detail_certifications() -> None:
     assert detail.json()["cert_uid"] == created["cert_uid"]
 
 
+def test_public_certification_document() -> None:
+    field_id = _create_field("Lote Documento")
+    created = client.post(
+        f"/v1/fields/{field_id}/certifications",
+        json={"period_from": 2024, "period_to": 2026},
+    ).json()
+
+    response = client.get(f"/v1/public/certifications/{created['cert_uid']}")
+    assert response.status_code == 200
+    document = response.json()
+    assert document["cert_uid"] == created["cert_uid"]
+    assert document["version"] == 1
+    assert document["verification_status"] == "verified"
+    assert document["field"]["id"] == field_id
+    assert document["content_hash"] == created["content_hash"]
+    assert document["anchor"]["tx_signature"]
+    assert document["snapshot"]["schema_version"] == document["schema_version"]
+    assert "monthly" in document["snapshot"]
+
+
+def test_public_certification_pdf() -> None:
+    field_id = _create_field("Lote PDF")
+    created = client.post(
+        f"/v1/fields/{field_id}/certifications",
+        json={"period_from": 2024, "period_to": 2026},
+    ).json()
+
+    response = client.get(f"/v1/public/certifications/{created['cert_uid']}.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
 def test_verify_unknown_certification_returns_404() -> None:
     response = client.get("/v1/public/certifications/does-not-exist/verify")
+    assert response.status_code == 404
+
+
+def test_public_certification_document_unknown_returns_404() -> None:
+    response = client.get("/v1/public/certifications/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_public_certification_pdf_unknown_returns_404() -> None:
+    response = client.get("/v1/public/certifications/does-not-exist.pdf")
     assert response.status_code == 404
 
 
@@ -173,6 +217,29 @@ def _manifest_with_observations() -> TimelapseManifest:
             )
         ],
     )
+
+
+def test_campaign_mapping() -> None:
+    assert campaign_of("2024-10") == "2024/25"
+    assert campaign_of("2025-03") == "2024/25"
+    assert campaign_of("2025-04") == "2024/25"
+    assert campaign_of("2025-08") == "2025/26"
+    assert campaign_of("2026-01") == "2025/26"
+
+
+def test_monthly_series_from_manifest() -> None:
+    series = build_monthly_series([_manifest_with_observations()])
+    assert len(series) == 1
+    summary = series[0]
+    assert summary.month == "2024-10"
+    assert summary.campaign == "2024/25"
+    assert summary.satellite_scenes == 1
+    assert summary.usable_scenes == 1
+    assert summary.ndvi_mean_x1000 == 411
+    assert summary.ndvi_max_x1000 == 411
+    assert summary.precip_mm_x10 == 0
+    assert summary.temp_min_c_x10 == 104
+    assert summary.temp_max_c_x10 == 213
 
 
 def test_build_observations_scales_and_merges_weather() -> None:
