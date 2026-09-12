@@ -1967,6 +1967,7 @@ dependencies = [
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic-settings" },
+    { name = "reportlab" },
     { name = "rfc8785" },
     { name = "solana" },
     { name = "solders" },
@@ -1978,7 +1979,6 @@ dependencies = [
 dev = [
     { name = "httpx" },
     { name = "pytest" },
-    { name = "reportlab" },
     { name = "ruff" },
 ]
 
@@ -1990,6 +1990,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
     { name = "pydantic-settings", specifier = ">=2.11,<3" },
+    { name = "reportlab", specifier = ">=5.0.1,<6" },
     { name = "rfc8785", specifier = ">=0.1,<0.2" },
     { name = "solana", specifier = ">=0.36,<0.39" },
     { name = "solders", specifier = ">=0.27,<0.29" },
@@ -2001,7 +2002,6 @@ requires-dist = [
 dev = [
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "pytest", specifier = ">=8.4,<9" },
-    { name = "reportlab", specifier = ">=5.0.1" },
     { name = "ruff", specifier = ">=0.14,<0.15" },
 ]
 
