@@ -236,23 +236,30 @@ export default function Planet3D({
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    const source = map.getSource("field-parcels") as mapboxgl.GeoJSONSource | undefined;
-    if (source) {
-      const data = buildParcelsGeoJson();
-      source.setData(data as any);
+    if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+    try {
+      const source = map.getSource("field-parcels") as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        const data = buildParcelsGeoJson();
+        source.setData(data as any);
+      }
+    } catch {
+      // Map style or source not ready yet
     }
   }, [buildParcelsGeoJson]);
 
   // Add parcels layers on map style load
   const addParcelLayers = useCallback(
     (map: mapboxgl.Map) => {
-      if (map.getSource("field-parcels")) return;
+      if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+      try {
+        if (map.getSource("field-parcels")) return;
 
-      const data = buildParcelsGeoJson();
-      map.addSource("field-parcels", {
-        type: "geojson",
-        data: data as any,
-      });
+        const data = buildParcelsGeoJson();
+        map.addSource("field-parcels", {
+          type: "geojson",
+          data: data as any,
+        });
 
       // Find top reference layer (labels/cities/routes) so parcel fill stays beneath text for readability
       const beforeLayer = map.getLayer("esri-canvas-ref-layer")
@@ -362,7 +369,10 @@ export default function Planet3D({
         },
         beforeLayer
       );
-    },
+    } catch (err) {
+      console.warn("Failed to add parcel layers:", err);
+    }
+  },
     [buildParcelsGeoJson, selectedField]
   );
 
@@ -408,17 +418,25 @@ export default function Planet3D({
 
     // Apply clean white atmosphere & fog on load
     const applyFogAndAtmosphere = () => {
-      map.setFog({
-        color: "rgb(255, 255, 255)", // Atmosphere bottom
-        "high-color": "rgb(240, 246, 255)", // Atmosphere upper
-        "horizon-blend": 0.02, // Atmosphere thickness
-        "space-color": "rgb(255, 255, 255)", // Pure white background!
-        "star-intensity": 0.0,
-      });
+      if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+      try {
+        map.setFog({
+          color: "rgb(255, 255, 255)", // Atmosphere bottom
+          "high-color": "rgb(240, 246, 255)", // Atmosphere upper
+          "horizon-blend": 0.02, // Atmosphere thickness
+          "space-color": "rgb(255, 255, 255)", // Pure white background!
+          "star-intensity": 0.0,
+        });
+      } catch {
+        // Fog not supported or error
+      }
       addParcelLayers(map);
     };
 
     map.on("style.load", applyFogAndAtmosphere);
+    if (map.isStyleLoaded && map.isStyleLoaded()) {
+      applyFogAndAtmosphere();
+    }
 
     // Floating tooltip for OneSoil parcel inspector
     const hoverPopup = new mapboxgl.Popup({
@@ -429,25 +447,32 @@ export default function Planet3D({
 
     // Interactive click: ONLY trigger selection on our loaded portfolio fields
     map.on("click", (e) => {
-      if (!map.getLayer("field-parcels-fill")) return;
-      const features = map.queryRenderedFeatures(e.point, { layers: ["field-parcels-fill"] });
-      if (features && features[0]) {
-        const isPortfolio = features[0].properties?.isPortfolio;
-        if (isPortfolio) {
-          const fieldId = features[0].properties?.fieldId;
-          const match = FIELDS_DATA.find((f) => f.id === fieldId);
-          if (match && onSelectField) {
-            onSelectField(match);
+      if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+      try {
+        if (!map.getLayer("field-parcels-fill")) return;
+        const features = map.queryRenderedFeatures(e.point, { layers: ["field-parcels-fill"] });
+        if (features && features[0]) {
+          const isPortfolio = features[0].properties?.isPortfolio;
+          if (isPortfolio) {
+            const fieldId = features[0].properties?.fieldId;
+            const match = FIELDS_DATA.find((f) => f.id === fieldId);
+            if (match && onSelectField) {
+              onSelectField(match);
+            }
           }
         }
+      } catch {
+        // Safe ignore
       }
     });
 
     // Mousemove: OneSoil tooltip & pointer cursor ONLY on portfolio fields
     map.on("mousemove", (e) => {
-      const activeLayer = map.getLayer("field-parcels-fill");
-      const cadastreLayer = map.getLayer("cadastre-neighbors-fill");
-      if (!activeLayer && !cadastreLayer) return;
+      if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+      try {
+        const activeLayer = map.getLayer("field-parcels-fill");
+        const cadastreLayer = map.getLayer("cadastre-neighbors-fill");
+        if (!activeLayer && !cadastreLayer) return;
 
       const layersToQuery: string[] = [];
       if (activeLayer) layersToQuery.push("field-parcels-fill");
@@ -501,103 +526,113 @@ export default function Planet3D({
         map.getCanvas().style.cursor = "";
         hoverPopup.remove();
       }
-    });
+    } catch {
+      // Safe ignore
+    }
+  });
 
-    map.on("mouseout", () => {
-      map.getCanvas().style.cursor = "";
-      hoverPopup.remove();
-    });
+  map.on("mouseout", () => {
+    map.getCanvas().style.cursor = "";
+    hoverPopup.remove();
+  });
 
-    // Track Zoom level dynamically
-    map.on("zoom", () => {
-      const z = map.getZoom();
-      setCurrentZoom(z);
-      if (z < 5.0) {
-        setZoomLevelName("global");
-      } else if (z < 11.5) {
-        setZoomLevelName("regional");
-      } else {
-        setZoomLevelName("parcel");
-      }
-    });
+  // Track Zoom level dynamically
+  map.on("zoom", () => {
+    const z = map.getZoom();
+    setCurrentZoom(z);
+    if (z < 5.0) {
+      setZoomLevelName("global");
+    } else if (z < 11.5) {
+      setZoomLevelName("regional");
+    } else {
+      setZoomLevelName("parcel");
+    }
+  });
 
-    // Add interactive field markers
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+  // Add interactive field markers
+  markersRef.current.forEach((m) => m.remove());
+  markersRef.current = [];
 
-    FIELDS_DATA.forEach((field) => {
-      const el = document.createElement("div");
-      el.className =
-        "group cursor-pointer flex items-center gap-1.5 rounded-full bg-white/95 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-blue-500 hover:shadow-lg active:scale-95";
+  FIELDS_DATA.forEach((field) => {
+    const el = document.createElement("div");
+    el.className =
+      "group cursor-pointer flex items-center gap-1.5 rounded-full bg-white/95 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 shadow-md backdrop-blur-md transition-all hover:scale-110 hover:border-blue-500 hover:shadow-lg active:scale-95";
 
-      el.innerHTML = `
-        <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span class="truncate max-w-[120px] font-bold text-gray-900">${field.name}</span>
-        <span class="rounded-full bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 text-[10px]">
-          ${field.hectares} ha
-        </span>
-      `;
+    el.innerHTML = `
+      <span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="truncate max-w-[120px] font-bold text-gray-900">${field.name}</span>
+      <span class="rounded-full bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 text-[10px]">
+        ${field.hectares} ha
+      </span>
+    `;
 
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (onSelectField) onSelectField(field);
-        map.flyTo({
-          center: [field.lng, field.lat],
-          zoom: 14.8,
-          pitch: 45,
-          bearing: -15,
-          duration: 2200,
-        });
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (onSelectField) onSelectField(field);
+      map.flyTo({
+        center: [field.lng, field.lat],
+        zoom: 14.8,
+        pitch: 45,
+        bearing: -15,
+        duration: 2200,
       });
-
-      const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat([field.lng, field.lat])
-        .addTo(map);
-
-      markersRef.current.push(marker);
     });
 
-    return () => {
-      clearTimeout(resizeTimeout);
-      ro.disconnect();
-      markersRef.current.forEach((m) => m.remove());
-      map.remove();
-    };
-  }, []);
+    const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+      .setLngLat([field.lng, field.lat])
+      .addTo(map);
 
-  // React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
-  useEffect(() => {
-    if (!mapRef.current || !selectedField) return;
-    const map = mapRef.current;
+    markersRef.current.push(marker);
+  });
 
-    const targetZoom = isExpanded ? 14.8 : 6.8;
-    const targetPitch = isExpanded ? 45 : 20;
+  return () => {
+    clearTimeout(resizeTimeout);
+    ro.disconnect();
+    markersRef.current.forEach((m) => m.remove());
+    map.remove();
+    mapRef.current = null;
+  };
+}, []);
 
-    map.flyTo({
-      center: [selectedField.lng, selectedField.lat],
-      zoom: targetZoom,
-      pitch: targetPitch,
-      bearing: isExpanded ? -15 : 0,
-      essential: true,
-      duration: 2200,
-    });
+// React to field selection: Smoothly fly camera to field with parcel zoom & update active highlight
+useEffect(() => {
+  if (!mapRef.current || !selectedField) return;
+  const map = mapRef.current;
 
-    // Update active highlight & halo glow filters
-    if (map.getLayer("field-active-highlight")) {
-      map.setFilter("field-active-highlight", [
-        "all",
-        ["==", ["get", "isPortfolio"], true],
-        ["==", ["get", "fieldId"], selectedField.id],
-      ]);
+  const targetZoom = isExpanded ? 14.8 : 6.8;
+  const targetPitch = isExpanded ? 45 : 20;
+
+  map.flyTo({
+    center: [selectedField.lng, selectedField.lat],
+    zoom: targetZoom,
+    pitch: targetPitch,
+    bearing: isExpanded ? -15 : 0,
+    essential: true,
+    duration: 2200,
+  });
+
+  // Update active highlight & halo glow filters safely
+  if (map.isStyleLoaded && map.isStyleLoaded()) {
+    try {
+      if (map.getLayer("field-active-highlight")) {
+        map.setFilter("field-active-highlight", [
+          "all",
+          ["==", ["get", "isPortfolio"], true],
+          ["==", ["get", "fieldId"], selectedField.id],
+        ]);
+      }
+      if (map.getLayer("field-active-halo")) {
+        map.setFilter("field-active-halo", [
+          "all",
+          ["==", ["get", "isPortfolio"], true],
+          ["==", ["get", "fieldId"], selectedField.id],
+        ]);
+      }
+    } catch {
+      // Style not fully ready yet
     }
-    if (map.getLayer("field-active-halo")) {
-      map.setFilter("field-active-halo", [
-        "all",
-        ["==", ["get", "isPortfolio"], true],
-        ["==", ["get", "fieldId"], selectedField.id],
-      ]);
-    }
-  }, [selectedField, isExpanded]);
+  }
+}, [selectedField, isExpanded]);
 
   // Switch Map Style
   const handleStyleChange = (styleKey: FreeMapStyleKey) => {
