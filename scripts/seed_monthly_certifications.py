@@ -10,8 +10,9 @@ Uso:
     uv run python scripts/seed_monthly_certifications.py --name Marcos
     uv run python scripts/seed_monthly_certifications.py --no-anchor  # sólo emite (sin blockchain)
 
-Usa el dataset listo más reciente de cada campo (el de la campaña completa), no
-todo el historial de datasets, para no duplicar observaciones.
+Usa, por cada campo, un dataset representativo por campaña (el más reciente de
+cada ventana) para acumular la historia completa entre campañas sin duplicar
+regeneraciones de una misma campaña.
 """
 
 from __future__ import annotations
@@ -22,9 +23,25 @@ import logging
 from app.blockchain.service import issue_monthly_certifications
 from app.store import get_field_store
 from app.timelapse.repository import get_timelapse_repository
+from app.timelapse.schemas import TimelapseDatasetSummary
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("seed_monthly_certifications")
+
+
+def history_datasets(repo, field_id) -> list[TimelapseDatasetSummary]:
+    """Un dataset listo no-demo por campaña (el más reciente), en orden de historia."""
+    ready = [
+        dataset
+        for dataset in repo.list_datasets_for_field(field_id)
+        if dataset.status == "ready" and not dataset.is_demo
+    ]
+    by_campaign: dict[tuple[int, int], TimelapseDatasetSummary] = {}
+    for dataset in ready:  # vienen ordenados por generated_at/created_at DESC
+        by_campaign.setdefault((dataset.start_date.year, dataset.end_date.year), dataset)
+    return sorted(
+        by_campaign.values(), key=lambda dataset: (dataset.start_date, dataset.end_date)
+    )
 
 
 def main() -> None:
@@ -45,11 +62,7 @@ def main() -> None:
     total = 0
     for field in fields:
         logger.info("=== %s ===", field.name)
-        datasets = [
-            dataset
-            for dataset in repo.list_datasets_for_field(field.id)
-            if dataset.status == "ready" and not dataset.is_demo
-        ][:1]
+        datasets = history_datasets(repo, field.id)
         if not datasets:
             logger.warning("Sin dataset listo; se omite.")
             continue
