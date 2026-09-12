@@ -323,8 +323,8 @@ export default function Home() {
               />
             )}
 
-            {/* Floating Timelapse Controller dock over the 3D viewport when field is active */}
-            {isFieldExpanded && (
+            {/* Floating Timelapse Controller dock over the 3D viewport when field is active on map */}
+            {isFieldExpanded && !isFieldIsolated3D && (
               <div className="absolute bottom-4 left-4 right-4 z-30 pointer-events-auto">
                 <TimelapseController
                   dates={timelapse.dates}

@@ -791,33 +791,6 @@ export default function Field3DIsoViewer({
         </div>
       </div>
 
-      {/* Top Center: Active Timelapse Date & Satellite State */}
-      {timelapse && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none hidden md:flex items-center gap-2 rounded-full bg-papel/95 border border-piedra-soft px-3.5 py-1.5 shadow-sm backdrop-blur-md text-[11px]">
-          <span className="font-mono font-bold text-bosque">
-            {timelapse.timelineState?.selectedDate || timelapse.selectedDate}
-          </span>
-          <span className="text-piedra">•</span>
-          <span
-            className={`inline-flex items-center gap-1 font-semibold ${
-              timelapse.timelineState?.isFresh ? "text-musgo" : "text-piedra"
-            }`}
-          >
-            {timelapse.timelineState?.isFresh
-              ? "🛰️ Sentinel-2 L2A"
-              : "🌱 Curva Fenológica"}
-          </span>
-          <span className="text-piedra">•</span>
-          <span className="font-mono uppercase text-[10px] text-bosque/80 font-bold">
-            {timelapse.activeLayer === "ndvi"
-              ? "Capa NDVI"
-              : timelapse.activeLayer === "rgb"
-              ? "Color Real"
-              : "Clima ERA5"}
-          </span>
-        </div>
-      )}
-
       {/* Floating 3D Data Pins on Screen (Projected from 3D coords) */}
       <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
         {projectedPins.map((p, idx) => {
@@ -881,11 +854,7 @@ export default function Field3DIsoViewer({
 
       {/* Bottom Agronomic Telemetry Dock for the Active Sector */}
       {activeSector && (
-        <div
-          className={`absolute ${
-            timelapse ? "bottom-26 sm:bottom-28" : "bottom-4"
-          } left-4 right-4 z-20 pointer-events-auto flex justify-center transition-all duration-300`}
-        >
+        <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-auto flex justify-center transition-all duration-300">
           <div className="w-full max-w-2xl rounded-2xl bg-papel/95 border border-piedra-soft p-3.5 shadow-xl backdrop-blur-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               {/* Sector Title & Crop */}
