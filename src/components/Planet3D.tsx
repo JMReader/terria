@@ -498,7 +498,7 @@ export default function Planet3D({
           const isPortfolio = features[0].properties?.isPortfolio;
           if (isPortfolio) {
             const fieldId = features[0].properties?.fieldId;
-            const match = fieldsList.find((f) => f.id === fieldId) || FIELDS_DATA.find((f) => f.id === fieldId);
+            const match = fieldsList.find((f) => f.id === fieldId);
             if (match && onSelectField) {
               onSelectField(match);
             }
