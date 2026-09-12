@@ -3,7 +3,7 @@
   "info": {
     "title": "TERRIA API",
     "summary": "Backend for the shareable history of a field.",
-    "description": "Initial CRUD API for fields, public field passports, timelapse engine, and What-If simulations.",
+    "description": "Initial CRUD API for fields, public field passports, timelapse engine, What-If simulations, and 5-year land valuation projector.",
     "version": "0.1.0"
   },
   "paths": {
@@ -734,6 +734,126 @@
         }
       }
     },
+    "/v1/fields/{field_id}/valuations/5yr": {
+      "post": {
+        "tags": [
+          "Valuation"
+        ],
+        "summary": "Project land value at 5 years for an existing field",
+        "description": "Proyecta el valor de la tierra a 5 a\u00f1os directamente sobre un campo persistido en el store.\n\nHereda autom\u00e1ticamente el pol\u00edgono perimetral, la superficie en hect\u00e1reas y la ubicaci\u00f3n f\u00edsica del lote.",
+        "operationId": "project_field_valuation_v1_fields__field_id__valuations_5yr_post",
+        "parameters": [
+          {
+            "name": "field_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Field Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldValuationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValuationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/valuations/5yr": {
+      "post": {
+        "tags": [
+          "Valuation"
+        ],
+        "summary": "Project land value at 5 years with ad-hoc geometry",
+        "description": "Proyecta el valor de la tierra a 5 a\u00f1os enviando directamente un pol\u00edgono GeoJSON o coordenadas.",
+        "operationId": "project_standalone_valuation_v1_valuations_5yr_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValuationSimulateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValuationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/valuations/drivers": {
+      "get": {
+        "tags": [
+          "Valuation"
+        ],
+        "summary": "Get description and formulas of the 3 valuation drivers",
+        "description": "Retorna la metodolog\u00eda y reglas de negocio de los 3 multiplicadores de apreciaci\u00f3n de la tierra.",
+        "operationId": "get_valuation_drivers_guide_v1_valuations_drivers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Valuation Drivers Guide V1 Valuations Drivers Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/debug/timelapse": {
       "get": {
         "tags": [
@@ -1103,6 +1223,39 @@
   },
   "components": {
     "schemas": {
+      "AgronomicDriver": {
+        "properties": {
+          "impact_percentage": {
+            "type": "number",
+            "title": "Impact Percentage",
+            "description": "Apreciaci\u00f3n porcentual por mejora agron\u00f3mica (%)"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier",
+            "description": "Factor multiplicador agron\u00f3mico (M_agro)"
+          },
+          "cagr_annual_pct": {
+            "type": "number",
+            "title": "Cagr Annual Pct",
+            "description": "Tasa de Crecimiento Anual Compuesto de rinde (%)"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Detalle de la serie hist\u00f3rica departamental SAGyP"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "impact_percentage",
+          "multiplier",
+          "cagr_annual_pct",
+          "detail"
+        ],
+        "title": "AgronomicDriver"
+      },
       "AssetResponse": {
         "properties": {
           "id": {
@@ -1254,6 +1407,27 @@
           "benchmarks"
         ],
         "title": "BenchmarkListResponse"
+      },
+      "DriversBreakdown": {
+        "properties": {
+          "logistic_improvement": {
+            "$ref": "#/components/schemas/LogisticDriver"
+          },
+          "agronomic_trend": {
+            "$ref": "#/components/schemas/AgronomicDriver"
+          },
+          "market_appreciation": {
+            "$ref": "#/components/schemas/MarketDriver"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logistic_improvement",
+          "agronomic_trend",
+          "market_appreciation"
+        ],
+        "title": "DriversBreakdown"
       },
       "FieldCreate": {
         "properties": {
@@ -1500,6 +1674,28 @@
         "type": "object",
         "title": "FieldUpdate"
       },
+      "FieldValuationRequest": {
+        "properties": {
+          "projection_years": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Projection Years",
+            "description": "Horizonte de proyecci\u00f3n en a\u00f1os (1 a 20)",
+            "default": 5
+          },
+          "include_audit": {
+            "type": "boolean",
+            "title": "Include Audit",
+            "description": "Incluir deep links y trazabilidad p\u00fablica de auditor\u00eda",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FieldValuationRequest",
+        "description": "Solicitud de proyecci\u00f3n de valor para un campo existente en el store."
+      },
       "FieldWhatIfRequest": {
         "properties": {
           "target_year": {
@@ -1559,6 +1755,39 @@
         "title": "FieldWhatIfRequest",
         "description": "Par\u00e1metros para ejecutar simulaci\u00f3n sobre un campo persistido."
       },
+      "FinancialTotals": {
+        "properties": {
+          "surface_ha": {
+            "type": "number",
+            "title": "Surface Ha",
+            "description": "Superficie total evaluada (hect\u00e1reas)"
+          },
+          "total_base_value_usd": {
+            "type": "number",
+            "title": "Total Base Value Usd",
+            "description": "Valor base total del lote hoy (USD)"
+          },
+          "total_projected_value_usd": {
+            "type": "number",
+            "title": "Total Projected Value Usd",
+            "description": "Valor proyectado total del lote a futuro (USD)"
+          },
+          "total_capital_gain_usd": {
+            "type": "number",
+            "title": "Total Capital Gain Usd",
+            "description": "Ganancia de capital neta esperada en el lote (USD)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "surface_ha",
+          "total_base_value_usd",
+          "total_projected_value_usd",
+          "total_capital_gain_usd"
+        ],
+        "title": "FinancialTotals"
+      },
       "FrameQuality": {
         "properties": {
           "valid_area_fraction": {
@@ -1593,6 +1822,84 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LogisticDriver": {
+        "properties": {
+          "impact_percentage": {
+            "type": "number",
+            "title": "Impact Percentage",
+            "description": "Apreciaci\u00f3n porcentual por infraestructura vial (%)"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier",
+            "description": "Factor multiplicador log\u00edstico (M_log)"
+          },
+          "distance_to_current_paved_km": {
+            "type": "number",
+            "title": "Distance To Current Paved Km",
+            "description": "Distancia actual al asfalto m\u00e1s cercano (km)"
+          },
+          "distance_to_future_paved_km": {
+            "type": "number",
+            "title": "Distance To Future Paved Km",
+            "description": "Distancia futura a la nueva traza en obra (km)"
+          },
+          "distance_saved_km": {
+            "type": "number",
+            "title": "Distance Saved Km",
+            "description": "Reducci\u00f3n neta de distancia log\u00edstica (km)"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Detalle de la obra vial detectada"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "impact_percentage",
+          "multiplier",
+          "distance_to_current_paved_km",
+          "distance_to_future_paved_km",
+          "distance_saved_km",
+          "detail"
+        ],
+        "title": "LogisticDriver"
+      },
+      "MarketDriver": {
+        "properties": {
+          "impact_percentage": {
+            "type": "number",
+            "title": "Impact Percentage",
+            "description": "Apreciaci\u00f3n porcentual de mercado del activo (%)"
+          },
+          "multiplier": {
+            "type": "number",
+            "title": "Multiplier",
+            "description": "Factor multiplicador de mercado (M_mkt)"
+          },
+          "annual_rate_pct": {
+            "type": "number",
+            "title": "Annual Rate Pct",
+            "description": "Tasa anual hist\u00f3rica de apreciaci\u00f3n inmobiliaria en USD (%)"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Fundamentaci\u00f3n macroecon\u00f3mica"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "impact_percentage",
+          "multiplier",
+          "annual_rate_pct",
+          "detail"
+        ],
+        "title": "MarketDriver"
       },
       "ModelMetrics": {
         "properties": {
@@ -2596,6 +2903,211 @@
         ],
         "title": "ValidationError"
       },
+      "ValuationData": {
+        "properties": {
+          "current_year": {
+            "type": "integer",
+            "title": "Current Year",
+            "description": "A\u00f1o base de inicio de la valuaci\u00f3n",
+            "default": 2026
+          },
+          "target_year": {
+            "type": "integer",
+            "title": "Target Year",
+            "description": "A\u00f1o horizonte de reventa proyectado",
+            "default": 2031
+          },
+          "projection_years": {
+            "type": "integer",
+            "title": "Projection Years",
+            "description": "A\u00f1os proyectados",
+            "default": 5
+          },
+          "base_value_usd_ha": {
+            "type": "number",
+            "title": "Base Value Usd Ha",
+            "description": "Valor base actual de la tierra (USD/ha)"
+          },
+          "projected_value_usd_ha": {
+            "type": "number",
+            "title": "Projected Value Usd Ha",
+            "description": "Valor proyectado de la tierra (USD/ha)"
+          },
+          "total_appreciation_percentage": {
+            "type": "number",
+            "title": "Total Appreciation Percentage",
+            "description": "Retorno porcentual pasivo estimado / ROI (%)"
+          },
+          "drivers_breakdown": {
+            "$ref": "#/components/schemas/DriversBreakdown"
+          },
+          "financial_totals": {
+            "$ref": "#/components/schemas/FinancialTotals"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash",
+            "description": "Hash determinista SHA-256 para certificaci\u00f3n on-chain"
+          },
+          "audit_urls": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Urls"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_value_usd_ha",
+          "projected_value_usd_ha",
+          "total_appreciation_percentage",
+          "drivers_breakdown",
+          "financial_totals",
+          "content_hash"
+        ],
+        "title": "ValuationData"
+      },
+      "ValuationResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version",
+            "default": "0.1"
+          },
+          "algorithm_version": {
+            "type": "string",
+            "title": "Algorithm Version",
+            "default": "3.0.0"
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Id"
+          },
+          "lot_name": {
+            "type": "string",
+            "title": "Lot Name"
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/ValuationData"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lot_name",
+          "valuation"
+        ],
+        "title": "ValuationResponse"
+      },
+      "ValuationSimulateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Name",
+            "default": "Lote Valuaci\u00f3n"
+          },
+          "boundary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PolygonGeometry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coordinates": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinates"
+          },
+          "centroid_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centroid Lat"
+          },
+          "centroid_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centroid Lon"
+          },
+          "area_hectares": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Hectares"
+          },
+          "projection_years": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Projection Years",
+            "default": 5
+          },
+          "include_audit": {
+            "type": "boolean",
+            "title": "Include Audit",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ValuationSimulateRequest",
+        "description": "Solicitud de proyecci\u00f3n de valor standalone con geometr\u00eda ad-hoc."
+      },
       "VerificationRequest": {
         "properties": {
           "benchmark_id": {
@@ -3073,6 +3585,10 @@
     {
       "name": "Simulations",
       "description": "What-If crop rotation and retrospective agronomic simulations."
+    },
+    {
+      "name": "Valuation",
+      "description": "5-year land valuation projector (FinTech & Real Estate)."
     }
   ]
 }

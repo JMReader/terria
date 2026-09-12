@@ -16,12 +16,13 @@ from app.schemas import (
 )
 from app.store import FieldNotFound, SQLiteFieldStore
 from app.timelapse.router import router as timelapse_router
+from app.valuation.router import router as valuation_router
 from app.what_if.router import router as what_if_router
 
 app = FastAPI(
     title="TERRIA API",
     summary="Backend for the shareable history of a field.",
-    description="Initial CRUD API for fields, public field passports, timelapse engine, and What-If simulations.",
+    description="Initial CRUD API for fields, public field passports, timelapse engine, What-If simulations, and 5-year land valuation projector.",
     version="0.1.0",
     openapi_version="3.1.0",
     openapi_tags=[
@@ -30,6 +31,7 @@ app = FastAPI(
         {"name": "Public fields", "description": "Shareable field passports."},
         {"name": "Timelapse", "description": "Field history and temporal observations."},
         {"name": "Simulations", "description": "What-If crop rotation and retrospective agronomic simulations."},
+        {"name": "Valuation", "description": "5-year land valuation projector (FinTech & Real Estate)."},
     ],
 )
 app.add_middleware(
@@ -42,6 +44,7 @@ app.add_middleware(
 store = SQLiteFieldStore()
 app.include_router(timelapse_router)
 app.include_router(what_if_router)
+app.include_router(valuation_router)
 
 DEBUG_TIMELAPSE_HTML_PATH = Path(__file__).parent / "static" / "timelapse" / "index.html"
 
@@ -51,6 +54,8 @@ def debug_timelapse_page() -> str:
     if not DEBUG_TIMELAPSE_HTML_PATH.exists():
         raise HTTPException(status_code=404, detail="Debug timelapse UI not found")
     return DEBUG_TIMELAPSE_HTML_PATH.read_text(encoding="utf-8")
+
+
 
 
 def not_found(request: Request) -> HTTPException:
