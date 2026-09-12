@@ -19,6 +19,7 @@ export interface ParcelProperties {
   selectedDate?: string;
   isFreshSatellite?: boolean;
   isPerimeter?: boolean;
+  kind: "lot" | "perimeter" | "neighbor";
 }
 
 export interface ParcelGeoJsonFeature {

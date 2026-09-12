@@ -1,0 +1,84 @@
+﻿{
+  "$schema": "functional-spec/v1",
+  "feature_id": "map-parcel-boundaries",
+  "title": "Delimitación Nativa de Parcelas y Hectáreas en el Mapa",
+  "version": "1.0.0",
+  "product_scope": {
+    "in_scope": [
+      "Remoción inmediata del panel/card flotante FieldHectaresInspector que obstruía la visión del mapa",
+      "Visualización nítida y directa de los polígonos vectoriales delimitados de cada lote y perímetro sobre el mapa base",
+      "Delimitación cartográfica estilo OneSoil: líneas de alambrado/perímetro oscuras, divisiones internas y halo de selección activo",
+      "Relleno de parcelas con escala de 7 bandas NDVI coloreado directamente sobre el terreno según la fecha activa del timeline",
+      "Rótulos cartográficos directos en el mapa indicando las hectáreas (ej. '86 ha', '142 ha', '4.4 ha') y nombre de lote sin paneles intrusivos",
+      "Cámara que centra automáticamente el campo a escala de trabajo para que las hectáreas y delimitaciones sean inmediatamente visibles al usuario"
+    ],
+    "out_of_scope": [
+      "Paneles o docks flotantes gigantes que tapen el mapa base",
+      "Edición o digitalización manual de nuevos polígonos con herramientas de dibujo",
+      "Reemplazo del motor cartográfico MapLibre GL"
+    ]
+  },
+  "user_journeys": [
+    {
+      "role": "Productor o Inversor Agrícola",
+      "goal": "Ver de un vistazo en el mapa cómo está delimitado el campo en diferentes lotes/hectáreas y el estado de su vegetación",
+      "steps": [
+        "El usuario abre la aplicación o selecciona un campo del portfolio",
+        "El mapa vuela suavemente al establecimiento y enfoca directamente los lotes a escala de parcela",
+        "El usuario observa con total claridad los límites de cada lote dibujados sobre la tierra con su contorno y coloración NDVI",
+        "Sobre cada parcela se observan sus hectáreas (ej. 'Lote 1: 4.4 ha') integradas en la cartografía",
+        "Al mover el slider de fecha del timeline, el color de cada parcela evoluciona en el mapa según el vigor de la biomasa"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-01",
+      "title": "Sin paneles invasivos sobre el mapa",
+      "given": "El usuario navega en la vista de mapa",
+      "when": "Se selecciona cualquier campo o se interactúa con el timeline",
+      "then": "El mapa permanece despejado, sin tarjetas voluminosas que tapen los campos y lotes"
+    },
+    {
+      "id": "AC-02",
+      "title": "Polígonos y delimitaciones de parcelas 100% visibles",
+      "given": "Un campo seleccionado en cartera (sea de FastAPI o del catálogo)",
+      "when": "Se renderiza el mapa en cualquier estilo base (canvas blanco, satélite, calles)",
+      "then": "Los polígonos de los lotes se muestran claramente con relleno cromático NDVI y bordes perimetrales nítidos sobre el terreno"
+    },
+    {
+      "id": "AC-03",
+      "title": "Hectáreas y nombres rotulados en la cartografía",
+      "given": "Las parcelas internas de un establecimiento",
+      "when": "La cámara está a nivel de lote",
+      "then": "Se leen las hectáreas correspondientes a cada lote directamente en el mapa"
+    },
+    {
+      "id": "AC-04",
+      "title": "Variación temporal de datos por lote",
+      "given": "La reproducción o desplazamiento del timeline de fechas",
+      "when": "Avanza el tiempo (fechas de siembra, desarrollo vegetativo y cosecha)",
+      "then": "Cada parcela delimitada actualiza dinámicamente su coloración según el índice NDVI de ese momento"
+    }
+  ],
+  "ux_behavior": {
+    "map_viewport": "100% visible, amplio y despejado para contemplar la geometría del terreno",
+    "parcel_styling": {
+      "perimeter_line": "Línea perimetral continua de alta definición (3px, color oscuro #0f172a)",
+      "internal_lines": "Líneas de división entre lotes (1.5px)",
+      "parcel_fill": "Opacidad optimizada (75-85%) para contrastar con el mapa base sin perder las carreteras o contexto geográfico",
+      "lot_labels": "Rótulos cartográficos sutiles integrados con nombre y hectáreas"
+    },
+    "interaction": "Click en una parcela resalta su contorno y muestra tooltip contextual ligero al pasar el ratón"
+  },
+  "business_rules": [
+    {
+      "rule": "Sumatoria de hectáreas",
+      "detail": "Las hectáreas de los lotes internos sumadas deben equivaler a la superficie total declarada del establecimiento"
+    },
+    {
+      "rule": "Colormap NDVI estandarizado",
+      "detail": "La escala cromática refleja con exactitud el estado del cultivo: <0.18 ocre/suelo, 0.18-0.30 amarillo emergencia, 0.30-0.60 verde lima/esmeralda, >0.72 verde intenso de alta biomasa"
+    }
+  ]
+}

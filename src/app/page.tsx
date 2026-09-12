@@ -86,36 +86,63 @@ export default function Home() {
                 }
               }
 
+              const isMj = f.name?.includes("Marcos Juárez");
+              const isManfredi = f.name?.includes("Manfredi");
+              const isPozo = f.name?.includes("Pozo del Carril");
+              const detectedCrop = f.primary_crop || (isMj ? "Maíz Tardío" : isManfredi ? "Soja de 1ra" : isPozo ? "Trigo / Soja" : "Maíz Tardío");
+              const detectedSoil = isMj
+                ? "Argiudol Típico Serie Marcos Juárez (Clase I)"
+                : isManfredi
+                ? "Haplustol Típico Serie Manfredi (Clase II)"
+                : isPozo
+                ? "Haplustol Típico Serie La Aguada (Clase II)"
+                : "Argiudol Típico";
+
               return {
                 id: f.id,
                 name: f.name,
                 code: `CAMPO ${String(idx + 1).padStart(2, "0")}`,
-                locality: f.locality || "Pergamino",
-                province: f.province || "Buenos Aires",
+                locality: f.locality || (isMj ? "Marcos Juárez" : isManfredi ? "Manfredi" : isPozo ? "La Aguada" : "Córdoba"),
+                province: f.province || "Córdoba",
                 coordinates: `${Math.abs(lat).toFixed(2)}°S ${Math.abs(lng).toFixed(2)}°W`,
                 lat,
                 lng,
-                hectares: f.area_hectares ?? 100,
-                crop: f.primary_crop ?? "Maíz Tardío",
-                primaryCrop: f.primary_crop ?? "Maíz Tardío",
+                hectares: typeof f.area_hectares === "number" ? f.area_hectares : 100,
+                crop: detectedCrop,
+                primaryCrop: detectedCrop,
                 ndvi: 0.79,
-                aptitude: "Alta",
-                suitabilityScore: 94,
-                soilSeries: "Argiudol Típico Serie Pergamino",
-                soilType: "Argiudol Típico Serie Pergamino",
-                rentUsdHa: 220,
-                rentQqSoja: 14.5,
-                waterTable: "Óptima a 2.1m",
-                status: f.is_published ? "published" : "destacado",
-                tags: ["Zona Núcleo", "Suelo Clase I-II", "Monitoreo Satelital"],
+                aptitude: isMj ? "Clase I Agrícola" : "Clase II Agrícola",
+                suitabilityScore: isMj ? 98 : isManfredi ? 94 : 91,
+                soilSeries: detectedSoil,
+                soilType: detectedSoil,
+                rentUsdHa: isMj ? 260 : isManfredi ? 210 : 185,
+                rentQqSoja: isMj ? 16.5 : isManfredi ? 13.5 : 12.0,
+                waterTable: isMj ? "Óptima a 1.8m" : "Cota normal a 2.4m",
+                status: f.visibility === "public" || f.is_published ? "published" : "destacado",
+                tags: isMj
+                  ? ["Zona Núcleo", "Suelo Clase I", "IDECOR Top 1"]
+                  : ["Suelo Agrícola", "Monitoreo Satelital"],
                 publicSlug: f.public_slug,
                 boundary: f.boundary,
+                description: f.description || "",
               };
             });
-            // Combine backend real fields with rich mock catalog fields
+
+            // Prioritize Hero field (Marcos Juárez) first, followed by Manfredi and Pozo del Carril
+            mapped.sort((a, b) => {
+              if (a.name.includes("Marcos Juárez")) return -1;
+              if (b.name.includes("Marcos Juárez")) return 1;
+              if (a.name.includes("Manfredi")) return -1;
+              if (b.name.includes("Manfredi")) return 1;
+              if (a.name.includes("Pozo del Carril")) return -1;
+              if (b.name.includes("Pozo del Carril")) return 1;
+              return 0;
+            });
+
+            // Combine backend real fields at top, preserving any additional catalog
             const combinedFields = [
               ...mapped,
-              ...FIELDS_DATA.filter((m) => !mapped.some((b) => b.id === m.id)),
+              ...FIELDS_DATA.filter((m) => !mapped.some((b) => b.name === m.name || b.id === m.id)),
             ];
             setBackendFields(combinedFields);
             setSelectedField(combinedFields[0]);

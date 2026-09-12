@@ -85,6 +85,122 @@ function sanitizeRing(points: [number, number][]): number[][] {
 }
 
 /**
+ * Cleanly partitions a field bounding box into 3 agronomic crop strips
+ * aligned with its geometric aspect ratio and real hectares.
+ */
+function computeFieldSectorRings(
+  field: FieldItem,
+  minLng: number,
+  maxLng: number,
+  minLat: number,
+  maxLat: number
+) {
+  const dec = field.hectares && field.hectares < 10 ? 2 : 1;
+  const latSpan = maxLat - minLat;
+  const lngSpan = maxLng - minLng;
+
+  if (latSpan >= lngSpan) {
+    // Divided into 3 horizontal agronomic crop strips (Norte, Centro, Sur)
+    const lat1 = Number((maxLat - latSpan * 0.42).toFixed(6));
+    const lat2 = Number((minLat + latSpan * 0.28).toFixed(6));
+
+    return [
+      {
+        id: `${field.id}-lote-1`,
+        name: `Lote 1 (Norte) — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+        crop: field.primaryCrop || field.crop || "Maíz Tardío",
+        hectares: Number(((field.hectares || 100) * 0.42).toFixed(dec)),
+        baseNdvi: field.ndvi ?? 0.82,
+        ring: sanitizeRing([
+          [minLng, maxLat],
+          [maxLng, maxLat],
+          [maxLng, lat1],
+          [minLng, lat1],
+          [minLng, maxLat],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-2`,
+        name: "Lote 2 (Centro) — Soja de 1ra",
+        crop: "Soja de 1ra",
+        hectares: Number(((field.hectares || 100) * 0.30).toFixed(dec)),
+        baseNdvi: Math.max(0.25, (field.ndvi ?? 0.82) - 0.05),
+        ring: sanitizeRing([
+          [minLng, lat1],
+          [maxLng, lat1],
+          [maxLng, lat2],
+          [minLng, lat2],
+          [minLng, lat1],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-3`,
+        name: "Lote 3 (Sur) — Trigo / Cobertura",
+        crop: "Trigo / Cobertura",
+        hectares: Number(((field.hectares || 100) * 0.28).toFixed(dec)),
+        baseNdvi: Math.max(0.20, (field.ndvi ?? 0.82) - 0.12),
+        ring: sanitizeRing([
+          [minLng, lat2],
+          [maxLng, lat2],
+          [maxLng, minLat],
+          [minLng, minLat],
+          [minLng, lat2],
+        ]),
+      },
+    ];
+  } else {
+    // Divided into 3 vertical agronomic crop strips (Oeste, Centro, Este)
+    const lng1 = Number((minLng + lngSpan * 0.42).toFixed(6));
+    const lng2 = Number((maxLng - lngSpan * 0.28).toFixed(6));
+
+    return [
+      {
+        id: `${field.id}-lote-1`,
+        name: `Lote 1 (Oeste) — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+        crop: field.primaryCrop || field.crop || "Maíz Tardío",
+        hectares: Number(((field.hectares || 100) * 0.42).toFixed(dec)),
+        baseNdvi: field.ndvi ?? 0.82,
+        ring: sanitizeRing([
+          [minLng, maxLat],
+          [lng1, maxLat],
+          [lng1, minLat],
+          [minLng, minLat],
+          [minLng, maxLat],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-2`,
+        name: "Lote 2 (Centro) — Soja de 1ra",
+        crop: "Soja de 1ra",
+        hectares: Number(((field.hectares || 100) * 0.30).toFixed(dec)),
+        baseNdvi: Math.max(0.25, (field.ndvi ?? 0.82) - 0.05),
+        ring: sanitizeRing([
+          [lng1, maxLat],
+          [lng2, maxLat],
+          [lng2, minLat],
+          [lng1, minLat],
+          [lng1, maxLat],
+        ]),
+      },
+      {
+        id: `${field.id}-lote-3`,
+        name: "Lote 3 (Este) — Trigo / Cobertura",
+        crop: "Trigo / Cobertura",
+        hectares: Number(((field.hectares || 100) * 0.28).toFixed(dec)),
+        baseNdvi: Math.max(0.20, (field.ndvi ?? 0.82) - 0.12),
+        ring: sanitizeRing([
+          [lng2, maxLat],
+          [maxLng, maxLat],
+          [maxLng, minLat],
+          [lng2, minLat],
+          [lng2, maxLat],
+        ]),
+      },
+    ];
+  }
+}
+
+/**
  * Generate PostGIS-compliant GeoJSON FeatureCollection dynamically evaluated
  * for the current calendar date in the Sentinel-2 timelapse.
  */
@@ -216,6 +332,7 @@ export function generateParcelsGeoJson(
           hectares: field.hectares,
           isPortfolio: true,
           isPerimeter: true,
+          kind: "perimeter",
           baseColor: "#0f172a",
           color: "#0f172a",
           currentNdvi: parseFloat((field.ndvi ?? 0.72).toFixed(2)),
@@ -248,51 +365,7 @@ export function generateParcelsGeoJson(
         ring: sanitizeRing(s.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat])),
       }));
     } else {
-      // Clean subdivision of field polygon into 3 agronomic lots
-      sectorRings = [
-        {
-          id: `${field.id}-lote-1`,
-          name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
-          crop: field.primaryCrop || field.crop || "Maíz Tardío",
-          hectares: Number((field.hectares * 0.48).toFixed(1)),
-          baseNdvi: field.ndvi ?? 0.79,
-          ring: sanitizeRing([
-            [minLng, maxLat],
-            [maxLng, maxLat],
-            [maxLng, midLat],
-            [minLng, midLat],
-            [minLng, maxLat],
-          ]),
-        },
-        {
-          id: `${field.id}-lote-2`,
-          name: "Lote 2 — Soja de 1ra",
-          crop: "Soja de 1ra",
-          hectares: Number((field.hectares * 0.32).toFixed(1)),
-          baseNdvi: Math.max(0.25, (field.ndvi ?? 0.79) - 0.05),
-          ring: sanitizeRing([
-            [minLng, midLat],
-            [midLng, midLat],
-            [midLng, minLat],
-            [minLng, minLat],
-            [minLng, midLat],
-          ]),
-        },
-        {
-          id: `${field.id}-lote-3`,
-          name: "Lote 3 — Trigo / Barbecho",
-          crop: "Trigo / Barbecho",
-          hectares: Number((field.hectares * 0.20).toFixed(1)),
-          baseNdvi: Math.max(0.20, (field.ndvi ?? 0.79) - 0.12),
-          ring: sanitizeRing([
-            [midLng, midLat],
-            [maxLng, midLat],
-            [maxLng, minLat],
-            [midLng, minLat],
-            [midLng, midLat],
-          ]),
-        },
-      ];
+      sectorRings = computeFieldSectorRings(field, minLng, maxLng, minLat, maxLat);
     }
 
     sectorRings.forEach((sec, sIdx) => {
@@ -343,6 +416,7 @@ export function generateParcelsGeoJson(
           soilHorizon: field.soilSeries || field.soilType || "Suelo Clase II",
           isPortfolio: true,
           isPerimeter: false,
+          kind: "lot",
           baseColor: activeColor,
           color: activeColor,
           currentNdvi: parseFloat(parcelNdvi.toFixed(2)),
@@ -389,6 +463,7 @@ export function generateParcelsGeoJson(
         hectares: cad.hectares,
         isPortfolio: false,
         isPerimeter: false,
+        kind: "neighbor",
         baseColor: cad.color,
         color: activeColor,
         currentNdvi: parseFloat(neighborNdvi.toFixed(2)),
@@ -465,50 +540,7 @@ export function getFieldLotBreakdown(
       ring: sanitizeRing(s.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat])),
     }));
   } else {
-    sectorRings = [
-      {
-        id: `${field.id}-lote-1`,
-        name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
-        crop: field.primaryCrop || field.crop || "Maíz Tardío",
-        hectares: Number((field.hectares * 0.48).toFixed(1)),
-        baseNdvi: field.ndvi ?? 0.79,
-        ring: sanitizeRing([
-          [minLng, maxLat],
-          [maxLng, maxLat],
-          [maxLng, midLat],
-          [minLng, midLat],
-          [minLng, maxLat],
-        ]),
-      },
-      {
-        id: `${field.id}-lote-2`,
-        name: "Lote 2 — Soja de 1ra",
-        crop: "Soja de 1ra",
-        hectares: Number((field.hectares * 0.32).toFixed(1)),
-        baseNdvi: Math.max(0.25, (field.ndvi ?? 0.79) - 0.05),
-        ring: sanitizeRing([
-          [minLng, midLat],
-          [midLng, midLat],
-          [midLng, minLat],
-          [minLng, minLat],
-          [minLng, midLat],
-        ]),
-      },
-      {
-        id: `${field.id}-lote-3`,
-        name: "Lote 3 — Trigo / Barbecho",
-        crop: "Trigo / Barbecho",
-        hectares: Number((field.hectares * 0.20).toFixed(1)),
-        baseNdvi: Math.max(0.20, (field.ndvi ?? 0.79) - 0.12),
-        ring: sanitizeRing([
-          [midLng, midLat],
-          [maxLng, midLat],
-          [maxLng, minLat],
-          [midLng, minLat],
-          [midLng, midLat],
-        ]),
-      },
-    ];
+    sectorRings = computeFieldSectorRings(field, minLng, maxLng, minLat, maxLat);
   }
 
   const totalHectares = sectorRings.reduce((acc, s) => acc + s.hectares, 0) || field.hectares || 100;

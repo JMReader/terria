@@ -1,0 +1,85 @@
+{
+  "$schema": "todos/v1",
+  "feature_id": "map-parcel-boundaries",
+  "version": "1.0.0",
+  "batches": [
+    {
+      "batch": 1,
+      "description": "Limpieza de UI — Remoción de panel invasivo",
+      "tasks": [
+        {
+          "id": "T01",
+          "title": "Eliminar FieldHectaresInspector de Planet3D y del árbol de componentes",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": [],
+          "outputs": ["Planet3D.tsx sin overlay intrusivo", "FieldHectaresInspector eliminado"],
+          "exit_criteria": "El viewport del mapa queda 100% visible y libre de paneles"
+        }
+      ]
+    },
+    {
+      "batch": 2,
+      "description": "Capa de Datos y Renderizado MapLibre GL",
+      "tasks": [
+        {
+          "id": "T02",
+          "title": "Estructurar propiedad 'kind' unívoca en backendParcelsGeoJson.ts",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": ["T01"],
+          "outputs": ["backendParcelsGeoJson.ts emitiendo kind='lot', kind='perimeter', kind='neighbor'"],
+          "exit_criteria": "Todas las features tienen kind definido sin ambigüedad"
+        },
+        {
+          "id": "T03",
+          "title": "Actualizar filtros de capas vectoriales en Planet3D.tsx para renderizar parcelas",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": ["T02"],
+          "outputs": ["Planet3D.tsx con filtros ['==', ['get', 'kind'], 'lot'] y perímetro visible"],
+          "exit_criteria": "Polígonos y líneas de lotes visibles directamente sobre el mapa"
+        }
+      ]
+    },
+    {
+      "batch": 3,
+      "description": "Verificación Técnica, Despliegue y Sincronización",
+      "tasks": [
+        {
+          "id": "T04",
+          "title": "Verificación de TypeScript y Build de Next.js",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": ["T03"],
+          "outputs": ["Compilación sin errores"],
+          "exit_criteria": "tsc y npm run build con código 0"
+        },
+        {
+          "id": "T05",
+          "title": "Commit y Push a repositorios GitHub",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": ["T04"],
+          "outputs": ["Ramas master y feat/frontend-3d actualizadas"],
+          "exit_criteria": "git push exitoso en ambos remotos"
+        },
+        {
+          "id": "T06",
+          "title": "Documentación en Baúl y sync-brain.ps1",
+          "owner_role": "frontend",
+          "status": "completed",
+          "parallelizable": false,
+          "depends_on": ["T05"],
+          "outputs": ["Nota técnica actualizada y sincronizada en SharedBrain"],
+          "exit_criteria": "sync-brain.ps1 ejecutado con éxito"
+        }
+      ]
+    }
+  ]
+}

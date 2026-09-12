@@ -8,7 +8,6 @@ import { FIELDS_DATA, FieldItem } from "@/data/fieldsData";
 import { FIELD_SECTORS_DATA, NEIGHBOR_CADASTRE_PARCELS } from "@/data/sectorsData";
 import { useFieldTimelapse } from "@/hooks/useFieldTimelapse";
 import { generateParcelsGeoJson, getFieldLotBreakdown } from "@/data/backendParcelsGeoJson";
-import FieldHectaresInspector from "@/components/FieldHectaresInspector";
 import {
   ZoomIn,
   ZoomOut,
@@ -218,7 +217,7 @@ export default function Planet3D({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
 
-  const [currentStyleKey, setCurrentStyleKey] = useState<FreeMapStyleKey>("canvas");
+  const [currentStyleKey, setCurrentStyleKey] = useState<FreeMapStyleKey>("satellite");
   const [zoomLevelName, setZoomLevelName] = useState<"global" | "regional" | "parcel">("global");
   const [currentZoom, setCurrentZoom] = useState<number>(2.0);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
@@ -261,10 +260,10 @@ export default function Planet3D({
           id: "cadastre-neighbors-fill",
           type: "fill",
           source: "field-parcels",
-          filter: ["==", ["get", "isPortfolio"], false],
+          filter: ["==", ["get", "kind"], "neighbor"],
           paint: {
             "fill-color": ["get", "color"],
-            "fill-opacity": 0.55,
+            "fill-opacity": 0.45,
           },
         });
 
@@ -273,11 +272,11 @@ export default function Planet3D({
           id: "cadastre-neighbors-line",
           type: "line",
           source: "field-parcels",
-          filter: ["==", ["get", "isPortfolio"], false],
+          filter: ["==", ["get", "kind"], "neighbor"],
           paint: {
             "line-color": "#475569",
             "line-width": 1.2,
-            "line-opacity": 0.7,
+            "line-opacity": 0.6,
           },
         });
 
@@ -286,10 +285,10 @@ export default function Planet3D({
           id: "field-perimeter-fill",
           type: "fill",
           source: "field-parcels",
-          filter: ["==", ["get", "isPerimeter"], true],
+          filter: ["==", ["get", "kind"], "perimeter"],
           paint: {
             "fill-color": "#1e40af",
-            "fill-opacity": 0.05,
+            "fill-opacity": 0.04,
           },
         });
 
@@ -298,10 +297,10 @@ export default function Planet3D({
           id: "field-parcels-fill",
           type: "fill",
           source: "field-parcels",
-          filter: ["all", ["==", ["get", "isPortfolio"], true], ["!=", ["get", "isPerimeter"], true]],
+          filter: ["==", ["get", "kind"], "lot"],
           paint: {
             "fill-color": ["get", "color"],
-            "fill-opacity": 0.82,
+            "fill-opacity": 0.58,
           },
         });
 
@@ -310,23 +309,23 @@ export default function Planet3D({
           id: "field-parcels-line",
           type: "line",
           source: "field-parcels",
-          filter: ["all", ["==", ["get", "isPortfolio"], true], ["!=", ["get", "isPerimeter"], true]],
+          filter: ["==", ["get", "kind"], "lot"],
           paint: {
             "line-color": "#0f172a",
-            "line-width": 1.8,
-            "line-opacity": 0.85,
+            "line-width": 2.2,
+            "line-opacity": 0.95,
           },
         });
 
-        // Layer 6: Whole Field Outer Perimeter boundary line (3px dark border)
+        // Layer 6: Whole Field Outer Perimeter boundary line (3.2px dark border)
         map.addLayer({
           id: "field-perimeter-line",
           type: "line",
           source: "field-parcels",
-          filter: ["==", ["get", "isPerimeter"], true],
+          filter: ["==", ["get", "kind"], "perimeter"],
           paint: {
             "line-color": "#0f172a",
-            "line-width": 3.0,
+            "line-width": 3.2,
             "line-opacity": 1.0,
           },
         });
@@ -338,30 +337,57 @@ export default function Planet3D({
           source: "field-parcels",
           filter: [
             "all",
-            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "kind"], "perimeter"],
             ["==", ["get", "fieldId"], selectedField?.id || ""],
           ],
           paint: {
             "line-color": "#2563eb",
-            "line-width": 7.0,
-            "line-opacity": 0.55,
+            "line-width": 8.0,
+            "line-opacity": 0.65,
           },
         });
 
-        // Layer 8: Active field crisp white neon border (OneSoil-style neon white boundary)
+        // Layer 8: Active field crisp neon border (vibrant cyan boundary)
         map.addLayer({
           id: "field-active-highlight",
           type: "line",
           source: "field-parcels",
           filter: [
             "all",
-            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "kind"], "perimeter"],
             ["==", ["get", "fieldId"], selectedField?.id || ""],
           ],
           paint: {
-            "line-color": "#ffffff",
+            "line-color": "#38bdf8",
             "line-width": 3.5,
             "line-opacity": 1.0,
+          },
+        });
+
+        // Layer 9: Native cartographic lot labels with hectares directly on the terrain
+        map.addLayer({
+          id: "field-parcels-labels",
+          type: "symbol",
+          source: "field-parcels",
+          filter: ["==", ["get", "kind"], "lot"],
+          layout: {
+            "text-field": [
+              "concat",
+              ["get", "name"],
+              "\n",
+              ["to-string", ["get", "hectares"]],
+              " ha • NDVI ",
+              ["to-string", ["get", "currentNdvi"]]
+            ],
+            "text-size": 11,
+            "text-justify": "center",
+            "text-anchor": "center",
+            "text-allow-overlap": false,
+          },
+          paint: {
+            "text-color": "#0f172a",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 2.5,
           },
         });
       } catch (err) {
@@ -397,8 +423,8 @@ export default function Planet3D({
       ? [selectedField.lng, selectedField.lat]
       : [-64.215, -33.115];
 
-    const initialZoom = isExpanded ? 14.8 : 2.2;
-    const initialPitch = isExpanded ? 45 : 0;
+    const initialZoom = 14.6;
+    const initialPitch = 42;
 
     const styleToUse = OPEN_MAP_STYLES[currentStyleKey] as any;
 
@@ -759,14 +785,14 @@ export default function Planet3D({
         if (map.getLayer("field-active-highlight")) {
           map.setFilter("field-active-highlight", [
             "all",
-            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "kind"], "perimeter"],
             ["==", ["get", "fieldId"], selectedField.id],
           ]);
         }
         if (map.getLayer("field-active-halo")) {
           map.setFilter("field-active-halo", [
             "all",
-            ["==", ["get", "isPortfolio"], true],
+            ["==", ["get", "kind"], "perimeter"],
             ["==", ["get", "fieldId"], selectedField.id],
           ]);
         }
@@ -995,23 +1021,6 @@ export default function Planet3D({
         </div>
 
       </div>
-
-      {/* Bottom Left: Interactive Field Hectares & Lots Inspector */}
-      {selectedField && (
-        <div className="absolute bottom-4 left-4 z-20 pointer-events-none max-w-[460px] w-[calc(100%-6rem)] sm:w-auto">
-          <FieldHectaresInspector
-            field={selectedField}
-            fieldsList={fieldsList}
-            timelineState={timelapse?.timelineState}
-            selectedDate={timelapse?.timelineState?.selectedDate}
-            onSelectField={(f) => {
-              if (onSelectField) onSelectField(f);
-            }}
-            onFocusField={handleFocusField}
-            onFocusLot={handleFocusLot}
-          />
-        </div>
-      )}
 
       {/* Bottom Right: Mapbox Zoom Controls (+ / - / Reset) */}
       <div className="absolute bottom-4 right-4 z-20 flex flex-col items-center gap-1.5 pointer-events-auto">

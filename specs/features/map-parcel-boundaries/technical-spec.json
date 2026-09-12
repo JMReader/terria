@@ -1,0 +1,114 @@
+﻿{
+  "$schema": "technical-spec/v1",
+  "feature_id": "map-parcel-boundaries",
+  "title": "Arquitectura Técnica para Delimitación Nativa de Parcelas en MapLibre GL",
+  "version": "1.0.0",
+  "architecture": {
+    "data_layer": {
+      "feature_types": [
+        {
+          "kind": "lot",
+          "description": "Lote agronómico interno con superficie en hectáreas, cultivo, variedad y NDVI temporal",
+          "geometry": "Polygon (anillo cerrado sin vértices degenerados)",
+          "properties": ["id", "fieldId", "name", "crop", "hectares", "color", "currentNdvi", "kind=lot"]
+        },
+        {
+          "kind": "perimeter",
+          "description": "Perímetro macro del establecimiento rural (alambrado exterior)",
+          "geometry": "Polygon (boundary exterior del campo)",
+          "properties": ["id", "fieldId", "fieldName", "hectares", "kind=perimeter"]
+        },
+        {
+          "kind": "neighbor",
+          "description": "Parcelas catastrales linderas de contexto agronómico",
+          "geometry": "Polygon",
+          "properties": ["id", "fieldId", "name", "crop", "hectares", "color", "kind=neighbor"]
+        }
+      ]
+    },
+    "map_pipeline": {
+      "engine": "MapLibre GL v6",
+      "layer_stack": [
+        {
+          "id": "cadastre-neighbors-fill",
+          "type": "fill",
+          "filter": ["==", ["get", "kind"], "neighbor"],
+          "paint": { "fill-color": ["get", "color"], "fill-opacity": 0.45 }
+        },
+        {
+          "id": "cadastre-neighbors-line",
+          "type": "line",
+          "filter": ["==", ["get", "kind"], "neighbor"],
+          "paint": { "line-color": "#475569", "line-width": 1.2, "line-opacity": 0.6 }
+        },
+        {
+          "id": "field-parcels-fill",
+          "type": "fill",
+          "filter": ["==", ["get", "kind"], "lot"],
+          "paint": { "fill-color": ["get", "color"], "fill-opacity": 0.78 }
+        },
+        {
+          "id": "field-parcels-line",
+          "type": "line",
+          "filter": ["==", ["get", "kind"], "lot"],
+          "paint": { "line-color": "#0f172a", "line-width": 2.0, "line-opacity": 0.9 }
+        },
+        {
+          "id": "field-perimeter-line",
+          "type": "line",
+          "filter": ["==", ["get", "kind"], "perimeter"],
+          "paint": { "line-color": "#0f172a", "line-width": 3.2, "line-opacity": 1.0 }
+        },
+        {
+          "id": "field-active-halo",
+          "type": "line",
+          "filter": ["all", ["==", ["get", "kind"], "perimeter"], ["==", ["get", "fieldId"], "${selectedFieldId}"]],
+          "paint": { "line-color": "#2563eb", "line-width": 7.0, "line-opacity": 0.55 }
+        },
+        {
+          "id": "field-active-highlight",
+          "type": "line",
+          "filter": ["all", ["==", ["get", "kind"], "perimeter"], ["==", ["get", "fieldId"], "${selectedFieldId}"]],
+          "paint": { "line-color": "#ffffff", "line-width": 3.5, "line-opacity": 1.0 }
+        }
+      ]
+    },
+    "ui_cleanup": {
+      "remove": ["src/components/FieldHectaresInspector.tsx"],
+      "viewport": "Sin overlays invasivos que tapen el terreno"
+    }
+  },
+  "interfaces": {
+    "ParcelGeoJsonProperties": {
+      "id": "string",
+      "fieldId": "string",
+      "name": "string",
+      "crop": "string",
+      "hectares": "number",
+      "color": "string",
+      "currentNdvi": "number",
+      "kind": "'lot' | 'perimeter' | 'neighbor'",
+      "statusLabel": "string",
+      "selectedDate": "string"
+    }
+  },
+  "failure_modes": [
+    {
+      "mode": "Filtro MapLibre excluye features por tipo",
+      "mitigation": "Uso exclusivo de propiedad de cadena explícita kind ('lot', 'perimeter', 'neighbor') eliminando booleanos ambiguos"
+    },
+    {
+      "mode": "Oclusión por capas raster",
+      "mitigation": "Inserción de capas vectoriales siempre en la cima del árbol de layers de MapLibre sin beforeLayer"
+    },
+    {
+      "mode": "Lotes desalineados del centro de cámara",
+      "mitigation": "Cálculo del bounding box real del campo para centrar la cámara con fitBounds o flyTo dinámico centrado en las coordenadas reales"
+    }
+  ],
+  "testing_strategy": {
+    "typescript": "Verificación estricta con npx tsc --noEmit",
+    "bundle_build": "Compilación limpia en Next.js Turbopack",
+    "visual_check": "Comprobación de que el mapa no tiene tarjetas intrusivas y que los lotes aparecen coloreados y delimitados sobre el terreno"
+  }
+}
