@@ -1,0 +1,95 @@
+{
+  "$schema": "todos/v1",
+  "feature_id": "parcels-ndvi-vgpu",
+  "version": "1.0.0",
+  "batches": [
+    {
+      "batch": 1,
+      "description": "Geometría y modelo de datos — Tipos y extracción de boundary real",
+      "tasks": [
+        {
+          "id": "T01",
+          "title": "Preservar boundary de GeoJSON en FieldItem (fieldsData.ts y page.tsx)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": [],
+          "outputs": ["FieldItem con boundary opcional", "page.tsx mapeando f.boundary real de FastAPI"],
+          "exit_criteria": "f.boundary presente en los objetos de backendFields"
+        },
+        {
+          "id": "T02",
+          "title": "Subdivisión limpia de parcelas y generación de FeatureCollection con capas de perímetro en backendParcelsGeoJson.ts",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T01"],
+          "outputs": ["backendParcelsGeoJson.ts generando polígonos válidos cerrados para cualquier campo del backend"],
+          "exit_criteria": "Features de lotes y perímetro con coordenadas válidas sin vértices duplicados"
+        }
+      ]
+    },
+    {
+      "batch": 2,
+      "description": "Renderizado MapLibre GL — Corrección de capas, visibilidad y reactividad",
+      "tasks": [
+        {
+          "id": "T03",
+          "title": "Eliminar oclusión de capas raster y agregar field-perimeter-line en Planet3D.tsx",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T02"],
+          "outputs": ["Planet3D.tsx con capas sobre el raster base y sincronización inmediata de source"],
+          "exit_criteria": "Polígonos y líneas perimetrales 100% visibles en el viewport"
+        },
+        {
+          "id": "T04",
+          "title": "Sincronizar colores NDVI en maqueta 3D (Field3DIsoViewer.tsx)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": true,
+          "depends_on": ["T02"],
+          "outputs": ["Field3DIsoViewer.tsx con paleta NDVI coincidente"],
+          "exit_criteria": "Colores 3D alineados con la escala de 7 bandas"
+        }
+      ]
+    },
+    {
+      "batch": 3,
+      "description": "Verificación, Build y Despliegue en Repositorios",
+      "tasks": [
+        {
+          "id": "T05",
+          "title": "Compilación y verificación técnica con TypeScript y Next.js build",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T03", "T04"],
+          "outputs": ["Build exitoso de Next.js"],
+          "exit_criteria": "tsc --noEmit y npm run build finalizados con código 0"
+        },
+        {
+          "id": "T06",
+          "title": "Commit y push a repositorios GitHub (master y feat/frontend-3d)",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T05"],
+          "outputs": ["Ramas remotas actualizadas"],
+          "exit_criteria": "git push exitoso en ambos remotos"
+        },
+        {
+          "id": "T07",
+          "title": "Documentación en Baúl (SharedBrain) y sincronización con sync-brain.ps1",
+          "owner_role": "frontend",
+          "status": "pending",
+          "parallelizable": false,
+          "depends_on": ["T06"],
+          "outputs": ["Nota técnica y artefactos en SharedBrain"],
+          "exit_criteria": "sync-brain.ps1 ejecutado y pusheado a origin/main"
+        }
+      ]
+    }
+  ]
+}

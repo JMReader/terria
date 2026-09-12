@@ -21,126 +21,41 @@ export default function FloatingIslandHeader({
   onSearchChange,
   onRegisterField,
   className = "",
-  backendStatus = "loading",
 }: FloatingIslandHeaderProps) {
   const [query, setQuery] = useState("");
-  const [isOpen, setIsOpen] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   const headerScopeRef = useRef<HTMLDivElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
-  const peekNotchRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // GSAP slide down animation
-  const showIsland = useCallback(() => {
-    setIsOpen(true);
-    if (!islandRef.current) return;
-
-    gsap.to(islandRef.current, {
-      y: 0,
-      autoAlpha: 1,
-      scale: 1,
-      duration: 0.45,
-      ease: "power3.out",
-      overwrite: "auto",
-    });
-
-    if (peekNotchRef.current) {
-      gsap.to(peekNotchRef.current, {
-        y: -40,
-        autoAlpha: 0,
-        duration: 0.25,
-        ease: "power2.in",
-        overwrite: "auto",
-      });
-    }
-  }, []);
-
-  // GSAP slide up animation
-  const hideIsland = useCallback(() => {
-    setIsOpen(false);
-    if (!islandRef.current) return;
-
-    gsap.to(islandRef.current, {
-      y: -85,
-      autoAlpha: 0,
-      scale: 0.97,
-      duration: 0.38,
-      ease: "power3.in",
-      overwrite: "auto",
-    });
-
-    if (peekNotchRef.current) {
-      gsap.to(peekNotchRef.current, {
-        y: 0,
-        autoAlpha: 1,
-        duration: 0.4,
-        delay: 0.12,
-        ease: "back.out(1.7)",
-        overwrite: "auto",
-      });
-    }
-  }, []);
-
-  // Initial Entrance animation with GSAP
+  // Subtle GSAP entrance
   useGSAP(
     () => {
       if (islandRef.current) {
         gsap.from(islandRef.current, {
-          y: -100,
+          y: -16,
           autoAlpha: 0,
-          scale: 0.95,
-          duration: 0.7,
-          ease: "back.out(1.2)",
-          delay: 0.15,
+          duration: 0.5,
+          ease: "power3.out",
         });
-      }
-      if (peekNotchRef.current) {
-        gsap.set(peekNotchRef.current, { y: -40, autoAlpha: 0 });
       }
     },
     { scope: headerScopeRef }
   );
 
-  // Global listeners: Click outside to hide, mouse near top to reveal, Esc to close
+  // Shortcut Ctrl/Cmd + K to focus search
   useEffect(() => {
-    const handleDocumentClick = (e: MouseEvent) => {
-      if (!islandRef.current) return;
-      if (!islandRef.current.contains(e.target as Node)) {
-        hideIsland();
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientY <= 38) {
-        showIsland();
-      }
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        hideIsland();
-        inputRef.current?.blur();
-      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        showIsland();
         inputRef.current?.focus();
       }
     };
-
-    document.addEventListener("mousedown", handleDocumentClick);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handleDocumentClick);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [hideIsland, showIsland]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleClear = () => {
     setQuery("");
@@ -154,69 +69,16 @@ export default function FloatingIslandHeader({
 
   return (
     <div ref={headerScopeRef} className={`select-none ${className}`}>
-      {/* Invisible Hover Sensor Zone at the very top edge */}
-      <div
-        onMouseEnter={showIsland}
-        className="fixed top-0 left-0 right-0 h-7 z-40 pointer-events-auto"
-        aria-hidden="true"
-      />
-
-      {/* Micro Peek Notch visible when island is tucked away */}
-      <button
-        ref={peekNotchRef}
-        onClick={showIsland}
-        onMouseEnter={showIsland}
-        title="Mostrar barra (o acerca el cursor arriba)"
-        className="fixed top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 border border-slate-200/90 shadow-md backdrop-blur-md text-xs font-semibold text-slate-800 hover:text-blue-600 hover:border-blue-300 transition-all cursor-pointer pointer-events-auto"
-      >
-        <span className="h-2 w-2 rounded-full bg-blue-600" />
-        <span className="text-xs font-black tracking-wider uppercase">Terra</span>
-      </button>
-
-      {/* Main Floating Dynamic Island Container */}
+      {/* Main Island Container — normal layout element, not fixed */}
       <header
         ref={islandRef}
-        onMouseEnter={() => {
-          if (!isOpen) showIsland();
-        }}
-        className="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[94vw] max-w-4xl pointer-events-auto"
       >
         <div className="relative rounded-2xl sm:rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-[0_12px_36px_-6px_rgba(15,23,42,0.12),0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-white/80 p-2 sm:px-4 sm:py-2 transition-shadow">
           <div className="flex items-center justify-between gap-3 sm:gap-4">
-            {/* Left: Brand + Backend Status */}
+            {/* Left: Brand */}
             <div className="flex items-center shrink-0 pl-1 sm:pl-2 gap-2">
               <span className="text-sm font-black tracking-widest text-slate-900 font-sans uppercase">
                 TERRA
-              </span>
-              {/* Backend connectivity indicator */}
-              <span
-                title={
-                  backendStatus === "connected"
-                    ? "Backend TERRIA conectado"
-                    : backendStatus === "loading"
-                    ? "Conectando al backend..."
-                    : "Backend offline — usando datos demo"
-                }
-                className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${
-                  backendStatus === "connected"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : backendStatus === "loading"
-                    ? "bg-amber-50 text-amber-600"
-                    : "bg-slate-100 text-slate-500"
-                }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    backendStatus === "connected"
-                      ? "bg-emerald-500 animate-pulse"
-                      : backendStatus === "loading"
-                      ? "bg-amber-400 animate-pulse"
-                      : "bg-slate-400"
-                  }`}
-                />
-                <span className="hidden sm:inline">
-                  {backendStatus === "connected" ? "API" : backendStatus === "loading" ? "..." : "demo"}
-                </span>
               </span>
             </div>
 

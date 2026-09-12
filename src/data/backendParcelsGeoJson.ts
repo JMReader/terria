@@ -1,4 +1,4 @@
-﻿import { FIELDS_DATA, FieldItem } from "./fieldsData";
+import { FIELDS_DATA, FieldItem } from "./fieldsData";
 import { FIELD_SECTORS_DATA, NEIGHBOR_CADASTRE_PARCELS, ParcelSector } from "./sectorsData";
 import { ParcelGeoJsonFeature, ParcelsGeoJsonCollection } from "@/types/parcels";
 import { TimelineState, TimelapseManifest } from "@/types/terria";
@@ -35,7 +35,6 @@ export function getSimulatedParcelNdvi(baseNdvi: number, crop: string, progress:
   const cropLower = (crop || "").toLowerCase();
 
   if (cropLower.includes("maíz") || cropLower.includes("maiz")) {
-    // Summer corn: emergence 0.28 -> rapid tillering -> peak 0.86 at day ~45 -> dry down
     if (normProgress < 0.20) {
       return 0.28 + normProgress * 1.4;
     } else if (normProgress < 0.70) {
@@ -44,7 +43,6 @@ export function getSimulatedParcelNdvi(baseNdvi: number, crop: string, progress:
       return 0.86 - (normProgress - 0.70) * 0.75;
     }
   } else if (cropLower.includes("soja")) {
-    // First crop soybean: emergence 0.26 -> rapid canopy closure -> peak 0.84 -> maturation
     if (normProgress < 0.25) {
       return 0.26 + normProgress * 1.5;
     } else if (normProgress < 0.65) {
@@ -53,88 +51,42 @@ export function getSimulatedParcelNdvi(baseNdvi: number, crop: string, progress:
       return 0.84 - (normProgress - 0.65) * 0.80;
     }
   } else if (cropLower.includes("trigo") || cropLower.includes("cebada")) {
-    // Winter small grains
     return Math.max(0.32, baseNdvi - normProgress * 0.35);
   } else {
-    // General pasture or native cover
     return Math.max(0.35, Math.min(0.85, baseNdvi + Math.sin(normProgress * Math.PI) * 0.12));
   }
 }
 
 /**
- * Fallback sector generator for dynamic fields (e.g. from backend database)
- * Subdivides field center/bounds into 3 realistic cadastral parcels
+ * Helper to ensure a ring has strictly closed geometry with no consecutive duplicates
  */
-function generateDynamicSectorsForField(field: FieldItem): ParcelSector[] {
-  const lat = field.lat;
-  const lng = field.lng;
-  const crop = field.primaryCrop || field.crop || "Maíz";
+function sanitizeRing(points: [number, number][]): number[][] {
+  if (points.length < 3) return [];
+  const clean: number[][] = [];
 
-  return [
-    {
-      id: `${field.id}-lote-1`,
-      name: `Lote 1 — ${crop}`,
-      hectares: Math.round(field.hectares * 0.45 * 10) / 10,
-      crop: crop,
-      variety: "Híbrido Premium",
-      ndvi: field.ndvi ?? 0.72,
-      moisturePercent: 82,
-      expectedYield: "95 qq/ha",
-      soilHorizon: field.soilSeries || field.soilType || "Suelo Agrícola Clase II",
-      color: "#16a34a",
-      offsets: [
-        [0.0055, -0.0065],
-        [0.0055, 0.0045],
-        [0.0005, 0.0045],
-        [0.0005, -0.0065],
-        [0.0055, -0.0065],
-      ],
-    },
-    {
-      id: `${field.id}-lote-2`,
-      name: "Lote 2 — Soja 1ra",
-      hectares: Math.round(field.hectares * 0.35 * 10) / 10,
-      crop: "Soja 1ra",
-      variety: "Enlist E3",
-      ndvi: Math.max(0.35, (field.ndvi ?? 0.72) - 0.05),
-      moisturePercent: 78,
-      expectedYield: "42 qq/ha",
-      soilHorizon: "Horizonte superficial profundo",
-      color: "#eab308",
-      offsets: [
-        [0.0000, -0.0065],
-        [0.0000, -0.0010],
-        [-0.0060, -0.0010],
-        [-0.0060, -0.0065],
-        [0.0000, -0.0065],
-      ],
-    },
-    {
-      id: `${field.id}-lote-3`,
-      name: "Lote 3 — Trigo / Rotación",
-      hectares: Math.round(field.hectares * 0.20 * 10) / 10,
-      crop: "Rotación",
-      variety: "Ciclo Intermedio",
-      ndvi: Math.max(0.30, (field.ndvi ?? 0.72) - 0.12),
-      moisturePercent: 74,
-      expectedYield: "38 qq/ha",
-      soilHorizon: "Suelo fértil bien drenado",
-      color: "#84cc16",
-      offsets: [
-        [0.0000, -0.0005],
-        [0.0000, 0.0045],
-        [-0.0060, 0.0045],
-        [-0.0060, -0.0005],
-        [0.0000, -0.0005],
-      ],
-    },
-  ];
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i];
+    const prev = clean[clean.length - 1];
+    if (!prev || prev[0] !== pt[0] || prev[1] !== pt[1]) {
+      clean.push([Number(pt[0].toFixed(6)), Number(pt[1].toFixed(6))]);
+    }
+  }
+
+  // Ensure closed
+  if (clean.length > 2) {
+    const first = clean[0];
+    const last = clean[clean.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      clean.push([first[0], first[1]]);
+    }
+  }
+
+  return clean;
 }
 
 /**
  * Generate PostGIS-compliant GeoJSON FeatureCollection dynamically evaluated
  * for the current calendar date in the Sentinel-2 timelapse.
- * Directly integrates real backend frames and weather series!
  */
 export function generateParcelsGeoJson(
   selectedDate: string = "2024-01-01",
@@ -146,36 +98,24 @@ export function generateParcelsGeoJson(
 ): ParcelsGeoJsonCollection {
   const fields = fieldsList && fieldsList.length > 0 ? fieldsList : FIELDS_DATA;
 
-  // Determine timeline date and progress (e.g. between manifest start and end)
+  // 1. Resolve timeline progress
   let timelineProgress = 0.5;
-  if (manifest && manifest.weatherDaily && manifest.weatherDaily.length > 1) {
+  if (manifest?.weatherDaily && manifest.weatherDaily.length > 1) {
     const dates = manifest.weatherDaily.map((w) => w.date);
     const idx = dates.indexOf(selectedDate);
     if (idx !== -1) {
       timelineProgress = idx / (dates.length - 1);
     }
-  } else {
-    // Fallback: day of year in Jan-Mar window
-    try {
-      const d = new Date(selectedDate);
-      const day = Math.min(90, Math.max(1, d.getDate() + (d.getMonth() * 30)));
-      timelineProgress = day / 90;
-    } catch {
-      timelineProgress = 0.5;
-    }
   }
 
-  // 1. Resolve active weather from timelineState or manifest
+  // 2. Resolve weather from timeline
   let activeTemp = 24.5;
   let activeRain = 0.0;
   if (timelineState?.weather) {
     const tMax = timelineState.weather.temperatureMax?.value;
     const tMin = timelineState.weather.temperatureMin?.value;
-    if (tMax != null && tMin != null) {
-      activeTemp = Number(((tMax + tMin) / 2).toFixed(1));
-    } else if (tMax != null) {
-      activeTemp = Number(tMax.toFixed(1));
-    }
+    if (tMax != null && tMin != null) activeTemp = Number(((tMax + tMin) / 2).toFixed(1));
+    else if (tMax != null) activeTemp = Number(tMax.toFixed(1));
     const rain = timelineState.weather.precipitationDay?.value;
     if (rain != null) activeRain = Number(rain.toFixed(1));
   } else if (manifest?.weatherDaily) {
@@ -188,7 +128,7 @@ export function generateParcelsGeoJson(
     }
   }
 
-  // 2. Resolve direct satellite NDVI from backend frame
+  // 3. Resolve direct satellite NDVI from backend frame
   let backendObservedNdvi: number | null = null;
   let backendObservationDate: string | null = null;
   let isFreshSatellite = false;
@@ -204,21 +144,211 @@ export function generateParcelsGeoJson(
 
   const features: ParcelGeoJsonFeature[] = [];
 
-  // 3. Process Neighbor Cadastral Parcels (OneSoil Cadastre context)
+  // 4. Process Portfolio Fields (Both macro perimeter AND internal agricultural parcels)
+  fields.forEach((field) => {
+    const isTarget = targetFieldId ? field.id === targetFieldId : true;
+
+    // A. Build Macro Field Boundary (Outer Perimeter)
+    let outerBoundaryRing: number[][] = [];
+    let minLng = field.lng - 0.008;
+    let maxLng = field.lng + 0.008;
+    let minLat = field.lat - 0.007;
+    let maxLat = field.lat + 0.007;
+
+    const boundaryRing = field.boundary?.coordinates?.[0];
+    if (boundaryRing && boundaryRing.length >= 3) {
+      const bCoords = boundaryRing;
+      const pts: [number, number][] = bCoords.map((c: number[]) => [c[0], c[1]]);
+      outerBoundaryRing = sanitizeRing(pts);
+
+      // Compute bounding box
+      const lngs = bCoords.map((c: number[]) => c[0]);
+      const lats = bCoords.map((c: number[]) => c[1]);
+      minLng = Math.min(...lngs);
+      maxLng = Math.max(...lngs);
+      minLat = Math.min(...lats);
+      maxLat = Math.max(...lats);
+    } else {
+      outerBoundaryRing = sanitizeRing([
+        [minLng, maxLat],
+        [maxLng, maxLat],
+        [maxLng, minLat],
+        [minLng, minLat],
+        [minLng, maxLat],
+      ]);
+    }
+
+    // Add perimeter feature (Used for field-perimeter-line and active glowing halo)
+    if (outerBoundaryRing.length >= 4) {
+      features.push({
+        type: "Feature",
+        id: `${field.id}-perimeter`,
+        properties: {
+          id: `${field.id}-perimeter`,
+          fieldId: field.id,
+          fieldName: field.name,
+          name: `${field.name} — Perímetro Catastral`,
+          crop: field.primaryCrop || field.crop || "Establecimiento",
+          variety: "Límite perimetral",
+          hectares: field.hectares,
+          isPortfolio: true,
+          isPerimeter: true,
+          baseColor: "#0f172a",
+          color: "#0f172a",
+          currentNdvi: parseFloat((field.ndvi ?? 0.72).toFixed(2)),
+          currentTemp: activeTemp,
+          currentRain: activeRain,
+          statusLabel: "Límite catastral verificado",
+          selectedDate,
+          isFreshSatellite,
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [outerBoundaryRing],
+        },
+      });
+    }
+
+    // B. Build Internal Agronomic Parcels (Hectares / Management Zones)
+    const midLng = Number(((minLng + maxLng) / 2).toFixed(6));
+    const midLat = Number(((minLat + maxLat) / 2).toFixed(6));
+
+    // Check if field has manual sectors or use real boundary subdivision
+    const staticSectors = FIELD_SECTORS_DATA[field.id];
+
+    let sectorRings: { id: string; name: string; crop: string; hectares: number; baseNdvi: number; ring: number[][] }[] = [];
+
+    if (staticSectors && staticSectors.length > 0) {
+      sectorRings = staticSectors.map((s) => ({
+        id: s.id,
+        name: s.name,
+        crop: s.crop,
+        hectares: s.hectares,
+        baseNdvi: s.ndvi,
+        ring: sanitizeRing(s.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat])),
+      }));
+    } else {
+      // Clean subdivision of field polygon into 3 agronomic lots
+      sectorRings = [
+        {
+          id: `${field.id}-lote-1`,
+          name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+          crop: field.primaryCrop || field.crop || "Maíz Tardío",
+          hectares: Number((field.hectares * 0.48).toFixed(1)),
+          baseNdvi: field.ndvi ?? 0.79,
+          ring: sanitizeRing([
+            [minLng, maxLat],
+            [maxLng, maxLat],
+            [maxLng, midLat],
+            [minLng, midLat],
+            [minLng, maxLat],
+          ]),
+        },
+        {
+          id: `${field.id}-lote-2`,
+          name: "Lote 2 — Soja de 1ra",
+          crop: "Soja de 1ra",
+          hectares: Number((field.hectares * 0.32).toFixed(1)),
+          baseNdvi: Math.max(0.25, (field.ndvi ?? 0.79) - 0.05),
+          ring: sanitizeRing([
+            [minLng, midLat],
+            [midLng, midLat],
+            [midLng, minLat],
+            [minLng, minLat],
+            [minLng, midLat],
+          ]),
+        },
+        {
+          id: `${field.id}-lote-3`,
+          name: "Lote 3 — Trigo / Barbecho",
+          crop: "Trigo / Barbecho",
+          hectares: Number((field.hectares * 0.20).toFixed(1)),
+          baseNdvi: Math.max(0.20, (field.ndvi ?? 0.79) - 0.12),
+          ring: sanitizeRing([
+            [midLng, midLat],
+            [maxLng, midLat],
+            [maxLng, minLat],
+            [midLng, minLat],
+            [midLng, midLat],
+          ]),
+        },
+      ];
+    }
+
+    sectorRings.forEach((sec, sIdx) => {
+      if (sec.ring.length < 4) return;
+
+      // Calculate dynamic NDVI for this sector
+      let parcelNdvi = sec.baseNdvi;
+      let statusText = "En vegetación activa";
+
+      if (backendObservedNdvi != null && isTarget) {
+        const sectorVariance = sIdx === 0 ? 1.02 : sIdx === 1 ? 0.98 : 0.94;
+        parcelNdvi = Math.max(0.12, Math.min(0.95, backendObservedNdvi * sectorVariance));
+
+        if (parcelNdvi > 0.75) {
+          statusText = `Pico de biomasa (Satélite ${backendObservationDate || selectedDate})`;
+        } else if (parcelNdvi > 0.55) {
+          statusText = `Desarrollo vegetativo vigoroso (Satélite ${backendObservationDate || selectedDate})`;
+        } else if (parcelNdvi > 0.35) {
+          statusText = `Crecimiento inicial / Macollaje (Satélite ${backendObservationDate || selectedDate})`;
+        } else {
+          statusText = `Emergencia / Rastrojo (Satélite ${backendObservationDate || selectedDate})`;
+        }
+      } else {
+        parcelNdvi = getSimulatedParcelNdvi(sec.baseNdvi, sec.crop, timelineProgress);
+        if (parcelNdvi > 0.75) statusText = "Pico vegetativo / Floración";
+        else if (parcelNdvi > 0.55) statusText = "Desarrollo de biomasa foliar";
+        else if (parcelNdvi > 0.35) statusText = "Emergencia y macollaje";
+        else statusText = "Emergencia temprana / Rastrojo";
+      }
+
+      let activeColor = getNdviRampColor(parcelNdvi);
+      if (activeLayer === "weather") {
+        activeColor = getTempRampColor(activeTemp);
+        statusText = activeRain > 5 ? `Lluvia acumulada ${activeRain} mm` : `Temperatura ${activeTemp}°C`;
+      }
+
+      features.push({
+        type: "Feature",
+        id: sec.id,
+        properties: {
+          id: sec.id,
+          fieldId: field.id,
+          fieldName: field.name,
+          name: sec.name,
+          crop: sec.crop,
+          variety: "Híbrido Certificado",
+          hectares: sec.hectares,
+          soilHorizon: field.soilSeries || field.soilType || "Suelo Clase II",
+          isPortfolio: true,
+          isPerimeter: false,
+          baseColor: activeColor,
+          color: activeColor,
+          currentNdvi: parseFloat(parcelNdvi.toFixed(2)),
+          currentTemp: activeTemp,
+          currentRain: activeRain,
+          statusLabel: statusText,
+          selectedDate,
+          isFreshSatellite,
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [sec.ring],
+        },
+      });
+    });
+  });
+
+  // 5. Process Surrounding Neighbor Cadastral Parcels (Context)
   NEIGHBOR_CADASTRE_PARCELS.forEach((cad) => {
     const field = fields.find((f) => f.id === cad.fieldId) || FIELDS_DATA.find((f) => f.id === cad.fieldId);
     if (!field) return;
 
-    const ring = cad.offsets.map(([dLat, dLng]) => [
-      parseFloat((field.lng + dLng).toFixed(6)),
-      parseFloat((field.lat + dLat).toFixed(6)),
-    ]);
-    if (ring.length > 0) {
-      ring.push([ring[0][0], ring[0][1]]); // close polygon
-    }
+    const ring = sanitizeRing(cad.offsets.map(([dLat, dLng]) => [field.lng + dLng, field.lat + dLat]));
+    if (ring.length < 4) return;
 
-    const neighborNdvi = getSimulatedParcelNdvi(0.58, cad.crop || "Soja", timelineProgress);
-
+    const neighborNdvi = getSimulatedParcelNdvi(0.55, cad.crop || "Soja", timelineProgress);
     let activeColor = cad.color;
     if (activeLayer === "ndvi") {
       activeColor = getNdviRampColor(neighborNdvi);
@@ -237,99 +367,20 @@ export function generateParcelsGeoJson(
         crop: cad.crop || "Cultivo lindero",
         variety: "Zona rural vecina",
         hectares: cad.hectares,
-        isPortfolio: false, // Not selectable
+        isPortfolio: false,
+        isPerimeter: false,
         baseColor: cad.color,
         color: activeColor,
         currentNdvi: parseFloat(neighborNdvi.toFixed(2)),
         currentTemp: activeTemp,
         currentRain: activeRain,
         statusLabel: "Lote vecino lindero",
+        selectedDate,
       },
       geometry: {
         type: "Polygon",
         coordinates: [ring],
       },
-    });
-  });
-
-  // 4. Process Active Portfolio Fields (Subdivided into agronomic parcels)
-  fields.forEach((field) => {
-    let sectors = FIELD_SECTORS_DATA[field.id];
-    if (!sectors || sectors.length === 0) {
-      sectors = generateDynamicSectorsForField(field);
-    }
-
-    sectors.forEach((sec, sIdx) => {
-      const ring = sec.offsets.map(([dLat, dLng]) => [
-        parseFloat((field.lng + dLng).toFixed(6)),
-        parseFloat((field.lat + dLat).toFixed(6)),
-      ]);
-      if (ring.length > 0) {
-        ring.push([ring[0][0], ring[0][1]]); // close polygon
-      }
-
-      // Calculate dynamic NDVI for this sector
-      let parcelNdvi = sec.ndvi;
-      let statusText = "En vegetación activa";
-
-      if (backendObservedNdvi != null && (targetFieldId ? field.id === targetFieldId : true)) {
-        // Apply backend satellite observation with slight intra-field sector variance
-        const sectorVariance = sIdx === 0 ? 1.02 : sIdx === 1 ? 0.98 : 0.95;
-        parcelNdvi = Math.max(0.12, Math.min(0.95, backendObservedNdvi * sectorVariance));
-
-        if (parcelNdvi > 0.75) {
-          statusText = `Pico de biomasa (Satélite ${backendObservationDate || selectedDate})`;
-        } else if (parcelNdvi > 0.55) {
-          statusText = `Desarrollo vegetativo vigoroso (Satélite ${backendObservationDate || selectedDate})`;
-        } else if (parcelNdvi > 0.35) {
-          statusText = `Crecimiento inicial / Macollaje (Satélite ${backendObservationDate || selectedDate})`;
-        } else {
-          statusText = `Emergencia / Suelo con rastrojo (Satélite ${backendObservationDate || selectedDate})`;
-        }
-      } else {
-        // Biological simulation based on timeline date
-        parcelNdvi = getSimulatedParcelNdvi(sec.ndvi, sec.crop, timelineProgress);
-        if (parcelNdvi > 0.75) statusText = "Pico vegetativo / Floración";
-        else if (parcelNdvi > 0.55) statusText = "Desarrollo de biomasa foliar";
-        else if (parcelNdvi > 0.35) statusText = "Emergencia y macollaje";
-        else statusText = "Emergencia temprana / Rastrojo";
-      }
-
-      let activeColor = sec.color;
-      if (activeLayer === "ndvi") {
-        activeColor = getNdviRampColor(parcelNdvi);
-      } else if (activeLayer === "weather") {
-        activeColor = getTempRampColor(activeTemp);
-        statusText = activeRain > 10 ? `Lluvia acumulada ${activeRain} mm` : `Temperatura ${activeTemp}°C`;
-      }
-
-      features.push({
-        type: "Feature",
-        id: sec.id,
-        properties: {
-          id: sec.id,
-          fieldId: field.id,
-          fieldName: field.name,
-          name: sec.name,
-          crop: sec.crop,
-          variety: sec.variety,
-          hectares: sec.hectares,
-          soilHorizon: sec.soilHorizon,
-          isPortfolio: true, // Interactive and selectable!
-          baseColor: sec.color,
-          color: activeColor,
-          currentNdvi: parseFloat(parcelNdvi.toFixed(2)),
-          currentTemp: activeTemp,
-          currentRain: activeRain,
-          statusLabel: statusText,
-          selectedDate: selectedDate,
-          isFreshSatellite,
-        },
-        geometry: {
-          type: "Polygon",
-          coordinates: [ring],
-        },
-      });
     });
   });
 

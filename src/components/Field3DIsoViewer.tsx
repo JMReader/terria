@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import gsap from "gsap";
 import { FieldItem } from "@/data/fieldsData";
 import { FIELD_SECTORS_DATA, ParcelSector } from "@/data/sectorsData";
+import { getNdviRampColor } from "@/data/backendParcelsGeoJson";
 import {
   ArrowLeft,
   Layers,
@@ -37,8 +38,85 @@ export default function Field3DIsoViewer({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Group | null>(null);
 
-  const sectors = FIELD_SECTORS_DATA[field.id] || [];
+  const rawSectors = FIELD_SECTORS_DATA[field.id];
+  const sectors: ParcelSector[] = useMemo(() => {
+    if (rawSectors && rawSectors.length > 0) {
+      return rawSectors.map((s) => ({
+        ...s,
+        color: getNdviRampColor(s.ndvi),
+      }));
+    }
+
+    // Default dynamic subdivision for fields without hardcoded sectors (e.g. backend fields)
+    const baseNdvi = field.ndvi ?? 0.76;
+    return [
+      {
+        id: `${field.id}-sec-1`,
+        name: `Lote 1 — ${field.primaryCrop || field.crop || "Maíz Tardío"}`,
+        hectares: Number((field.hectares * 0.48).toFixed(1)),
+        crop: field.primaryCrop || field.crop || "Maíz Tardío",
+        variety: "Híbrido Alto Rinde",
+        ndvi: baseNdvi,
+        moisturePercent: 82,
+        expectedYield: "112 qq/ha",
+        soilHorizon: "Hapludol Típico Profundo",
+        color: getNdviRampColor(baseNdvi),
+        offsets: [
+          [0.012, -0.012],
+          [0.012, 0.012],
+          [0.001, 0.012],
+          [0.001, -0.012],
+          [0.012, -0.012],
+        ],
+      },
+      {
+        id: `${field.id}-sec-2`,
+        name: "Lote 2 — Soja de 1ra",
+        hectares: Number((field.hectares * 0.32).toFixed(1)),
+        crop: "Soja de 1ra",
+        variety: "Grupo IV Corto",
+        ndvi: Math.max(0.25, parseFloat((baseNdvi - 0.06).toFixed(2))),
+        moisturePercent: 78,
+        expectedYield: "44 qq/ha",
+        soilHorizon: "Horizonte Árgico a 40cm",
+        color: getNdviRampColor(Math.max(0.25, baseNdvi - 0.06)),
+        offsets: [
+          [0.001, -0.012],
+          [0.001, 0.0],
+          [-0.012, 0.0],
+          [-0.012, -0.012],
+          [0.001, -0.012],
+        ],
+      },
+      {
+        id: `${field.id}-sec-3`,
+        name: "Lote 3 — Trigo / Cobertura",
+        hectares: Number((field.hectares * 0.20).toFixed(1)),
+        crop: "Trigo / Cobertura",
+        variety: "Ciclo Intermedio",
+        ndvi: Math.max(0.20, parseFloat((baseNdvi - 0.14).toFixed(2))),
+        moisturePercent: 72,
+        expectedYield: "38 qq/ha",
+        soilHorizon: "Textura Franco-Limosa",
+        color: getNdviRampColor(Math.max(0.20, baseNdvi - 0.14)),
+        offsets: [
+          [0.001, 0.0],
+          [0.001, 0.012],
+          [-0.012, 0.012],
+          [-0.012, 0.0],
+          [0.001, 0.0],
+        ],
+      },
+    ];
+  }, [field, rawSectors]);
+
   const [activeSector, setActiveSector] = useState<ParcelSector>(sectors[0] || null);
+
+  useEffect(() => {
+    if (sectors.length > 0) {
+      setActiveSector(sectors[0]);
+    }
+  }, [sectors]);
   const [showLayers, setShowLayers] = useState({
     ndvi: true,
     soilStrata: true,
@@ -453,7 +531,7 @@ export default function Field3DIsoViewer({
       }
       renderer.dispose();
     };
-  }, [field.id, field.irrigation]);
+  }, [field.id, field.irrigation, sectors]);
 
   // Camera Presets
   const setCameraPreset = (type: "iso" | "top" | "soil") => {

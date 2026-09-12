@@ -18,6 +18,7 @@ export interface ParcelProperties {
   statusLabel?: string;
   selectedDate?: string;
   isFreshSatellite?: boolean;
+  isPerimeter?: boolean;
 }
 
 export interface ParcelGeoJsonFeature {

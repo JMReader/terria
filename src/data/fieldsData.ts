@@ -28,6 +28,10 @@ export interface FieldItem {
   soilType?: string;     // alias for soilSeries from backend
   aptitude?: string;     // soil aptitude label
   publicSlug?: string;   // TERRIA public URL slug
+  boundary?: {           // Real GeoJSON polygon boundary from backend
+    type: string;
+    coordinates: number[][][];
+  };
 }
 
 export const FIELDS_DATA: FieldItem[] = [

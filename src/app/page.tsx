@@ -109,6 +109,7 @@ export default function Home() {
                 status: f.is_published ? "published" : "destacado",
                 tags: ["Zona Núcleo", "Suelo Clase I-II", "Monitoreo Satelital"],
                 publicSlug: f.public_slug,
+                boundary: f.boundary,
               };
             });
             setBackendFields(mapped);
@@ -231,16 +232,18 @@ export default function Home() {
       {/* Subtle WebGPU background canvas */}
       <WebGpuCosmicGrid />
 
-      {/* Dynamic Floating Island Header with GSAP Auto-Hide & Reveal */}
-      <FloatingIslandHeader
-        onSearchChange={(query) => setSearchQuery(query)}
-        selectedField={selectedField}
-        totalFields={backendFields.length}
-        backendStatus={backendStatus}
-      />
+      {/* Header with its own layout space — no overlap */}
+      <div className="relative z-50 shrink-0 px-4 sm:px-6 pt-3 pb-2">
+        <FloatingIslandHeader
+          onSearchChange={(query) => setSearchQuery(query)}
+          selectedField={selectedField}
+          totalFields={backendFields.length}
+          backendStatus={backendStatus}
+        />
+      </div>
 
       {/* Main Two-Column Layout: Left Map/Planet + Right Field Cards */}
-      <main className="relative z-10 flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-12 gap-4 px-4 sm:px-6 pt-16 pb-3 overflow-hidden">
+      <main className="relative z-10 flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-12 gap-4 px-4 sm:px-6 pb-3 overflow-hidden">
         {/* LEFT COLUMN (7 / 12 cols): Clean 3D Map / Planet or Isolated 3D Field Viewport */}
         <div
           ref={mapViewportRef}

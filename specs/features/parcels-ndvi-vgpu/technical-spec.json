@@ -1,0 +1,104 @@
+{
+  "$schema": "technical-spec/v1",
+  "feature_id": "parcels-ndvi-vgpu",
+  "title": "Technical Spec: Delimitación Geométrica Robusta, Colormap NDVI Dinámico y Arquitectura Híbrida vgpu/MapLibre",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval",
+  "based_on": "functional-spec v1.0.0",
+
+  "architecture_decisions": {
+    "rendering_engine": {
+      "geospatial_map": "MapLibre GL v6.9.0 para navegación satelital 2D/3D con coordenadas lat/lng reales",
+      "gpu_acceleration": "vgpu v0.4.1 (WebGPU WGSL shaders) para efectos visuales de fondo y maqueta 3D aislada",
+      "layer_stacking_fix": "Eliminar 'beforeLayer' restrictivo en map.addLayer() para asegurar que los polígonos vectoriales y líneas perimetrales se dibujen SIEMPRE por encima de los tiles raster de Esri Canvas/Satélite"
+    },
+    "geometry_pipeline": {
+      "source_of_truth": "Backend FastAPI boundary: Polygon (coordenadas [ [ [lng, lat] ... ] ]) de Establecimiento La Posta (Demo) y campos registrados",
+      "parcel_subdivision_strategy": "Algoritmo de bisección/trisección rectangular limpia para campos que no tengan sub-sectores manuales: divide la caja o polígono del campo en Lote Norte, Lote Sur y Lote Este/Oeste respetando las hectáreas proporcionales",
+      "ring_sanitization": "Garantizar anillos exteriores GeoJSON estrictamente cerrados (primer punto == último punto exacto, sin puntos duplicados consecutivos) para evitar que MapLibre descarte los polígonos"
+    },
+    "ndvi_colormap_pipeline": {
+      "bands": [
+        { "min": -1.0, "max": 0.18, "color": "#b45309", "label": "Suelo desnudo / Rastrojo seco" },
+        { "min": 0.18, "max": 0.30, "color": "#eab308", "label": "Emergencia temprana" },
+        { "min": 0.30, "max": 0.45, "color": "#84cc16", "label": "Macollaje e inicio vegetativo" },
+        { "min": 0.45, "max": 0.60, "color": "#22c55e", "label": "Expansión foliar" },
+        { "min": 0.60, "max": 0.72, "color": "#16a34a", "label": "Canopia cerrada" },
+        { "min": 0.72, "max": 0.85, "color": "#15803d", "label": "Floración y pico de biomasa" },
+        { "min": 0.85, "max": 1.00, "color": "#14532d", "label": "Máximo vigor fotosintético" }
+      ],
+      "backend_sync": "El valor de NDVI se extrae directamente de timelineState.satellite.ndvi.mean.value; si el día no tiene pasada satelital directa, se interpola determinísticamente entre las observaciones válidas de la serie temporal"
+    }
+  },
+
+  "module_specifications": {
+    "src_data_backendParcelsGeoJson_ts": {
+      "changes": [
+        "Extraer boundary del FieldItem (o calcularlo a partir de su centro y hectáreas si no viniera)",
+        "Implementar splitFieldIntoParcels(boundary, hectares, crop): genera polígonos cerrados válidos para cada lote",
+        "Calcular NDVI por lote con variación intra-lote realista (zonas de manejo agronómico)",
+        "Generar tanto capas de relleno (fill) con el color NDVI como capas de contorno (line) con grosores jerárquicos: perímetro de campo (3px #0f172a), divisiones entre parcelas (1.5px #334155), halo activo (#2563eb 7px) y borde neón (#ffffff 3px)"
+      ]
+    },
+    "src_components_Planet3D_tsx": {
+      "changes": [
+        "Modificar addParcelLayers(): no usar beforeLayer que tape los polígonos debajo del raster base",
+        "Agregar una capa 'field-perimeter-line' dedicada con 'line-width': 3.0 para que el límite total del campo sea inmediatamente visible",
+        "Garantizar que si addParcelLayers() se ejecuta antes de que carguen los campos del backend, el efecto de sincronización vuelva a verificar y añadir las capas y sources si hiciera falta",
+        "Optimizar la llamada source.setData() ante cualquier cambio en selectedField o timelineState"
+      ]
+    },
+    "src_app_page_tsx": {
+      "changes": [
+        "Asegurar que la propiedad boundary de los campos del backend se preserve en FieldItem",
+        "Pasar boundary en el objeto mapped a setBackendFields()",
+        "Garantizar que setSelectedField() inicialice el primer campo con su boundary completa"
+      ]
+    },
+    "src_components_Field3DIsoViewer_tsx": {
+      "changes": [
+        "Vincular el color de las parcelas 3D a la misma escala NDVI de 7 bandas",
+        "Asegurar que al tocar 'Maqueta 3D' se visualicen las parcelas con elevación y textura shader"
+      ]
+    }
+  },
+
+  "implementation_phases": [
+    {
+      "phase": 1,
+      "name": "Pipeline de Geometría y Partición de Parcelas",
+      "tasks": [
+        "Preservar f.boundary en FieldItem dentro de page.tsx",
+        "Crear función robusta en backendParcelsGeoJson.ts que use f.boundary real y lo subdivida en parcelas GeoJSON cerradas y válidas",
+        "Verificar que los anillos poligonales no tengan vértices duplicados o corruptos"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Renderizado Visible en MapLibre GL",
+      "tasks": [
+        "Ajustar z-order y capas en Planet3D.tsx para que 'field-parcels-fill', 'field-parcels-line' y 'field-perimeter-line' se ubiquen sobre el mapa base",
+        "Añadir capa perimetral del establecimiento completa con borde nítido #0f172a y halo neón",
+        "Asegurar actualización inmediata de source.setData() al recibir los datos del backend"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Sincronización Dinámica con Timeline y WebGPU",
+      "tasks": [
+        "Vincular el color NDVI dinámico a las fechas del timeline",
+        "Verificar que el tooltip interactivo muestre la fecha, NDVI y clima en tiempo real",
+        "Sincronizar colores en la Maqueta 3D (Field3DIsoViewer)"
+      ]
+    }
+  ],
+
+  "verification_plan": {
+    "automated": "npm run build (verificación de tipos TypeScript y empaquetado Turbopack)",
+    "manual": [
+      "Comprobar en el navegador que el polígono del campo y sus parcelas internas aparezcan claramente delimitados en Pergamino (-33.90°S, -60.61°W)",
+      "Mover el slider del timeline y verificar que los colores de las parcelas cambien dinámicamente de acuerdo al NDVI del backend",
+      "Hacer clic en 'Maqueta 3D' y verificar que se abra la vista aislada con los mismos colores y lotes"
+    ]
+  }
+}

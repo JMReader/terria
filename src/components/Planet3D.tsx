@@ -238,107 +238,100 @@ export default function Planet3D({
     );
   }, [timelapse?.timelineState, timelapse?.activeLayer, timelapse?.manifest, selectedField?.id, fieldsList]);
 
-  // Synchronize GeoJSON source whenever timelapse date or layer changes
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current;
-    if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
-    try {
-      const source = map.getSource("field-parcels") as maplibregl.GeoJSONSource | undefined;
-      if (source) {
-        const data = buildParcelsGeoJson();
-        source.setData(data as any);
-      }
-    } catch {
-      // Map style or source not ready yet
-    }
-  }, [buildParcelsGeoJson]);
-
   // Add parcels layers on map style load
   const addParcelLayers = useCallback(
     (map: maplibregl.Map) => {
       if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
-        if (map.getSource("field-parcels")) return;
-
         const data = buildParcelsGeoJson();
+        if (map.getSource("field-parcels")) {
+          const src = map.getSource("field-parcels") as maplibregl.GeoJSONSource;
+          src.setData(data as any);
+          return;
+        }
+
         map.addSource("field-parcels", {
           type: "geojson",
           data: data as any,
         });
 
-      // Find top reference layer (labels/cities/routes) so parcel fill stays beneath text for readability
-      const beforeLayer = map.getLayer("esri-canvas-ref-layer")
-        ? "esri-canvas-ref-layer"
-        : map.getLayer("esri-places-layer")
-        ? "esri-places-layer"
-        : undefined;
-
-      // Layer 1: Surrounding neighbor cadastral lots (authentic OneSoil multi-crop mosaic, non-selectable)
-      map.addLayer(
-        {
+        // Layer 1: Surrounding neighbor cadastral lots (authentic OneSoil multi-crop mosaic, non-selectable)
+        map.addLayer({
           id: "cadastre-neighbors-fill",
           type: "fill",
           source: "field-parcels",
           filter: ["==", ["get", "isPortfolio"], false],
           paint: {
             "fill-color": ["get", "color"],
-            "fill-opacity": 0.62,
+            "fill-opacity": 0.55,
           },
-        },
-        beforeLayer
-      );
+        });
 
-      // Layer 2: Surrounding neighbor cadastral boundaries (crisp parcel fence/road separation)
-      map.addLayer(
-        {
+        // Layer 2: Surrounding neighbor cadastral boundaries (crisp parcel fence/road separation)
+        map.addLayer({
           id: "cadastre-neighbors-line",
           type: "line",
           source: "field-parcels",
           filter: ["==", ["get", "isPortfolio"], false],
           paint: {
-            "line-color": "#1e293b",
-            "line-width": 1.6,
-            "line-opacity": 0.75,
+            "line-color": "#475569",
+            "line-width": 1.2,
+            "line-opacity": 0.7,
           },
-        },
-        beforeLayer
-      );
+        });
 
-      // Layer 3: Our loaded agricultural portfolio fields (vibrant NDVI & crop colors, interactive)
-      map.addLayer(
-        {
+        // Layer 3: Field Cadastral Perimeter Fill (subtle baseline footprint)
+        map.addLayer({
+          id: "field-perimeter-fill",
+          type: "fill",
+          source: "field-parcels",
+          filter: ["==", ["get", "isPerimeter"], true],
+          paint: {
+            "fill-color": "#1e40af",
+            "fill-opacity": 0.05,
+          },
+        });
+
+        // Layer 4: Internal Agronomic Parcels Fill (vibrant NDVI & crop colors, interactive)
+        map.addLayer({
           id: "field-parcels-fill",
           type: "fill",
           source: "field-parcels",
-          filter: ["==", ["get", "isPortfolio"], true],
+          filter: ["all", ["==", ["get", "isPortfolio"], true], ["!=", ["get", "isPerimeter"], true]],
           paint: {
             "fill-color": ["get", "color"],
-            "fill-opacity": 0.78,
+            "fill-opacity": 0.82,
           },
-        },
-        beforeLayer
-      );
+        });
 
-      // Layer 4: Crisp cadastral perimeter lines for our loaded portfolio fields
-      map.addLayer(
-        {
+        // Layer 5: Crisp cadastral interior division lines between internal lots
+        map.addLayer({
           id: "field-parcels-line",
           type: "line",
           source: "field-parcels",
-          filter: ["==", ["get", "isPortfolio"], true],
+          filter: ["all", ["==", ["get", "isPortfolio"], true], ["!=", ["get", "isPerimeter"], true]],
           paint: {
             "line-color": "#0f172a",
-            "line-width": 2.5,
-            "line-opacity": 0.95,
+            "line-width": 1.8,
+            "line-opacity": 0.85,
           },
-        },
-        beforeLayer
-      );
+        });
 
-      // Layer 5: Active field outer glow / halo (OneSoil neon blue halo)
-      map.addLayer(
-        {
+        // Layer 6: Whole Field Outer Perimeter boundary line (3px dark border)
+        map.addLayer({
+          id: "field-perimeter-line",
+          type: "line",
+          source: "field-parcels",
+          filter: ["==", ["get", "isPerimeter"], true],
+          paint: {
+            "line-color": "#0f172a",
+            "line-width": 3.0,
+            "line-opacity": 1.0,
+          },
+        });
+
+        // Layer 7: Active field outer glow / halo (OneSoil neon blue halo)
+        map.addLayer({
           id: "field-active-halo",
           type: "line",
           source: "field-parcels",
@@ -350,15 +343,12 @@ export default function Planet3D({
           paint: {
             "line-color": "#2563eb",
             "line-width": 7.0,
-            "line-opacity": 0.5,
+            "line-opacity": 0.55,
           },
-        },
-        beforeLayer
-      );
+        });
 
-      // Layer 6: Active field crisp white neon border (OneSoil-style neon white boundary)
-      map.addLayer(
-        {
+        // Layer 8: Active field crisp white neon border (OneSoil-style neon white boundary)
+        map.addLayer({
           id: "field-active-highlight",
           type: "line",
           source: "field-parcels",
@@ -369,18 +359,34 @@ export default function Planet3D({
           ],
           paint: {
             "line-color": "#ffffff",
-            "line-width": 4.0,
+            "line-width": 3.5,
             "line-opacity": 1.0,
           },
-        },
-        beforeLayer
-      );
-    } catch (err) {
-      console.warn("Failed to add parcel layers:", err);
-    }
-  },
+        });
+      } catch (err) {
+        console.warn("Failed to add parcel layers:", err);
+      }
+    },
     [buildParcelsGeoJson, selectedField]
   );
+
+  // Synchronize GeoJSON source whenever timelapse date or layer changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+    try {
+      const source = map.getSource("field-parcels") as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        const data = buildParcelsGeoJson();
+        source.setData(data as any);
+      } else {
+        addParcelLayers(map);
+      }
+    } catch {
+      // Map style or source not ready yet
+    }
+  }, [buildParcelsGeoJson, addParcelLayers]);
 
   // Initialize MapLibre GL (no token needed — 100% free!)
   useEffect(() => {
@@ -456,8 +462,11 @@ export default function Planet3D({
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
       try {
-        if (!map.getLayer("field-parcels-fill")) return;
-        const features = map.queryRenderedFeatures(e.point, { layers: ["field-parcels-fill"] });
+        const queryLayers: string[] = [];
+        if (map.getLayer("field-parcels-fill")) queryLayers.push("field-parcels-fill");
+        if (map.getLayer("field-perimeter-fill")) queryLayers.push("field-perimeter-fill");
+        if (queryLayers.length === 0) return;
+        const features = map.queryRenderedFeatures(e.point, { layers: queryLayers });
         if (features && features[0]) {
           const isPortfolio = features[0].properties?.isPortfolio;
           if (isPortfolio) {
@@ -483,6 +492,7 @@ export default function Planet3D({
 
       const layersToQuery: string[] = [];
       if (activeLayer) layersToQuery.push("field-parcels-fill");
+      if (map.getLayer("field-perimeter-fill")) layersToQuery.push("field-perimeter-fill");
       if (cadastreLayer) layersToQuery.push("cadastre-neighbors-fill");
 
       const features = map.queryRenderedFeatures(e.point, { layers: layersToQuery });
@@ -722,59 +732,19 @@ useEffect(() => {
       {/* Real Mapbox GL WebGL Map Container */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
-      {/* Top Left: Mapbox-Style Level-of-Detail (LOD) Stepper */}
-      <div className="absolute top-3 left-3 z-20 pointer-events-auto flex flex-col gap-1.5">
-        <div className="flex items-center gap-1 rounded-full bg-white/95 border border-gray-200 p-1 shadow-sm backdrop-blur-md">
+      {/* Top Left: 3D Button, Scale/Altitude, and NDVI Colors */}
+      <div className="absolute top-3 left-3 z-20 pointer-events-auto flex flex-col gap-1.5 items-start">
+        {/* Botón para ver en 3D */}
+        {onIsolateField && selectedField && (
           <button
-            onClick={zoomToGlobal}
-            title="Vista Global (Planeta 3D completo)"
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-              zoomLevelName === "global"
-                ? "bg-blue-600 text-white shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            }`}
+            onClick={() => onIsolateField(selectedField)}
+            title="Ver maqueta 3D aislada"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/95 text-blue-700 hover:bg-blue-50 transition-all cursor-pointer border border-blue-200/90 shadow-sm backdrop-blur-md"
           >
-            <Globe2 className="h-3 w-3" />
-            <span>Global</span>
+            <Box className="h-3.5 w-3.5 text-blue-600" />
+            <span>Ver en 3D</span>
           </button>
-
-          <button
-            onClick={zoomToRegional}
-            title="Vista Regional (Provincias y Rutas)"
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-              zoomLevelName === "regional"
-                ? "bg-blue-600 text-white shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            }`}
-          >
-            <MapIcon className="h-3 w-3" />
-            <span>Regional</span>
-          </button>
-
-          <button
-            onClick={zoomToParcel}
-            title="Vista Parcela (Calles, lotes y NDVI)"
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-              zoomLevelName === "parcel"
-                ? "bg-emerald-600 text-white shadow-xs font-semibold"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            }`}
-          >
-            <Sparkles className="h-3 w-3" />
-            <span>Parcela</span>
-          </button>
-
-          {selectedField && onIsolateField && (
-            <button
-              onClick={() => onIsolateField(selectedField)}
-              title="Separar este campo del mapa como maqueta 3D aislada"
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all cursor-pointer border border-blue-200/60 shadow-xs"
-            >
-              <Box className="h-3 w-3 text-blue-600" />
-              <span>Aislar en 3D</span>
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Current Scale & Altitude Pill */}
         <div className="flex items-center gap-2 rounded-full bg-white/90 border border-gray-200/80 px-3 py-1 shadow-xs backdrop-blur-sm text-[11px] text-gray-500 font-sans w-fit">
@@ -796,108 +766,33 @@ useEffect(() => {
           </span>
         </div>
 
-              {/* OneSoil Dynamic Metric Legend (NDVI / Clima / Cultivos) */}
-        {currentZoom >= 5.0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/95 border border-gray-200/90 px-3 py-1.5 shadow-sm backdrop-blur-md text-[11px] text-gray-700 max-w-fit animate-in fade-in duration-300">
-            {timelapse?.activeLayer === "ndvi" ? (
-              <>
-                <span className="font-bold text-gray-900 flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  NDVI Sentinel-2:
-                </span>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#fef08a] border border-black/10 shadow-xs" />
-                  <span>&lt;0.35 Suelo</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#bef264] border border-black/10 shadow-xs" />
-                  <span>0.50</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#84cc16] border border-black/10 shadow-xs" />
-                  <span>0.65</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#22c55e] border border-black/10 shadow-xs" />
-                  <span>0.78</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#15803d] border border-black/10 shadow-xs" />
-                  <span>&gt;0.85 Pico</span>
-                </div>
-              </>
-            ) : timelapse?.activeLayer === "weather" ? (
-              <>
-                <span className="font-bold text-gray-900 flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-                  Clima ERA5:
-                </span>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#38bdf8] border border-black/10 shadow-xs" />
-                  <span>&lt;22°C</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#34d399] border border-black/10 shadow-xs" />
-                  <span>25°C</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#fbbf24] border border-black/10 shadow-xs" />
-                  <span>30°C</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#f97316] border border-black/10 shadow-xs" />
-                  <span>&gt;32°C Estrés</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <span className="font-bold text-gray-900 flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Cultivos:
-                </span>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#eab308] border border-black/10 shadow-xs" />
-                  <span>Maíz</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#dc2626] border border-black/10 shadow-xs" />
-                  <span>Soja</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#ca8a04] border border-black/10 shadow-xs" />
-                  <span>Cebada</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#16a34a] border border-black/10 shadow-xs" />
-                  <span>Pastura</span>
-                </div>
-                <div className="flex items-center gap-1 font-medium text-gray-500 border-l border-gray-200 pl-2">
-                  <span className="inline-block h-2.5 w-2.5 rounded-xs bg-[#475569] border border-black/10 shadow-xs" />
-                  <span>Linderos</span>
-                </div>
-              </>
-            )}
+        {/* Leyenda NDVI: únicamente NDVI y los colores, englobado en un rectángulo con bordes super redondeados */}
+        {currentZoom >= 4.0 && (
+          <div className="flex items-center gap-2.5 rounded-full bg-white/95 border border-gray-200/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md text-[11px] text-gray-700 w-fit animate-in fade-in duration-300">
+            <span className="font-bold text-gray-900">NDVI:</span>
+            <div className="flex items-center gap-1 font-medium">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#fef08a] border border-black/10 shadow-xs" />
+              <span>&lt;0.35</span>
+            </div>
+            <div className="flex items-center gap-1 font-medium">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#bef264] border border-black/10 shadow-xs" />
+              <span>0.50</span>
+            </div>
+            <div className="flex items-center gap-1 font-medium">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#84cc16] border border-black/10 shadow-xs" />
+              <span>0.65</span>
+            </div>
+            <div className="flex items-center gap-1 font-medium">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22c55e] border border-black/10 shadow-xs" />
+              <span>0.78</span>
+            </div>
+            <div className="flex items-center gap-1 font-medium">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#15803d] border border-black/10 shadow-xs" />
+              <span>&gt;0.85</span>
+            </div>
           </div>
         )}
       </div>
-
-            {/* Top Center: Sentinel-2 Live Observation & Date HUD */}
-      {timelapse && isExpanded && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 border border-emerald-200/90 shadow-md backdrop-blur-md text-xs text-gray-800 animate-in fade-in duration-300">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-          <span className="font-bold text-gray-900">
-            Sentinel-2 L2A • {timelapse.timelineState?.selectedDate || "2025-02-12"}
-          </span>
-          <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-            {timelapse.activeLayer === "ndvi" ? "Índice NDVI" : timelapse.activeLayer === "weather" ? "Clima ERA5" : "RGB Real"}
-          </span>
-          {timelapse.timelineState?.satellite?.quality && (
-            <span className="text-[10px] text-gray-500 font-medium border-l border-gray-200 pl-2">
-              {Math.round(timelapse.timelineState.satellite.quality.validPixelFraction * 100)}% sin nubes
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Top Right: Map Style Selector (Calles / Satélite / Positron) & Token */}
       <div className="absolute top-3 right-3 z-20 pointer-events-auto flex items-center gap-1.5">

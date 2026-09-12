@@ -1,0 +1,94 @@
+{
+  "$schema": "functional-spec/v1",
+  "feature_id": "parcels-ndvi-vgpu",
+  "title": "Delimitación Visible de Campos y Parcelas con Color NDVI Dinámico + Análisis e Integración vgpu (WebGPU)",
+  "version": "1.0.0",
+  "status": "DRAFT — awaiting user approval",
+
+  "problem": {
+    "summary": "En la captura de pantalla enviada por el usuario se observa que en el mapa solo aparece el marcador flotante ('Establecimiento L... 9.24 ha'), pero NO se renderiza la delimitación perimetral del campo ni las parcelas internas con sus colores NDVI. El usuario solicita que las parcelas (conjunto de hectáreas del campo) se vean claramente delimitadas y coloreadas por NDVI, analiza si se puede hacer con vgpu (WebGPU), y pide implementarlo con /spec-json-iteration-flow.",
+    "root_causes_identified": [
+      "El backend entrega 'boundary: Polygon' para el campo real, pero el generador de GeoJSON buscaba IDs estáticos en FIELD_SECTORS_DATA; al no encontrarlos generaba offsets que no usaban el polígono real del backend.",
+      "En MapLibre GL, la capa de parcelas se insertaba antes de 'esri-canvas-ref-layer', lo cual puede quedar tapado u oculto por el orden de renderizado raster.",
+      "El source 'field-parcels' no se refrescaba forzosamente cuando los datos del backend terminaban de cargar después del montaje inicial del mapa."
+    ]
+  },
+
+  "domain_concepts": {
+    "campo": {
+      "definition": "Establecimiento agropecuario completo con su perímetro catastral total (e.g. 9.24 ha o 420 ha).",
+      "visual_representation": "Polígono perimetral con línea exterior nítida (#0f172a, 2.5px), halo resplandeciente (#2563eb) y contorno blanco cuando está seleccionado."
+    },
+    "parcelas": {
+      "definition": "Subdivisiones agronómicas internas del campo (conjunto de hectáreas o lotes de manejo) dedicadas a un cultivo específico (Maíz, Soja, Trigo) con su propio índice NDVI.",
+      "visual_representation": "Polígonos interiores delimitados entre sí, con relleno coloreado según la escala de 7 bandas NDVI de precisión."
+    }
+  },
+
+  "vgpu_analysis": {
+    "question": "¿Las parcelas y campos se pueden hacer con vgpu (WebGPU)?",
+    "feasibility": "SÍ, de manera complementaria y de alto impacto visual.",
+    "technical_findings": [
+      "WebGPU (mediante el paquete 'vgpu' v0.4.1 ya instalado en el proyecto) permite ejecutar shaders WGSL directamente en la GPU con rendimiento masivo sin consumir CPU.",
+      "Para un mapa interactivo mundial (con tiles de satélite, calles, proyección y coordenadas geográficas lat/lng), MapLibre GL JS es el estándar GIS más robusto y probado.",
+      "La MEJOR arquitectura es HÍBRIDA: MapLibre GL maneja las coordenadas geográficas y los polígonos vectoriales nativos en el mapa, mientras que vgpu (WebGPU) se integra para: (1) Shader de gradiente dinámico y halo de vigor en WebGpuCosmicGrid y (2) Renderizado 3D de la parcela con micro-relieve y estratos de suelo en Field3DIsoViewer ('Maqueta 3D / Aislar en 3D').",
+      "Además, en el mapa se garantiza que las geometrías de las parcelas se dibujen SIEMPRE en la capa superior (sin quedar tapadas por tiles raster de Esri) utilizando el polígono real entregado por el backend."
+    ],
+    "verdict": "Aprobado para arquitectura híbrida: corrección inmediata de las capas vectoriales en MapLibre + shaders WGSL en vgpu para efectos visuales avanzados."
+  },
+
+  "scope": {
+    "in": [
+      "Garantizar que el campo (perímetro exterior) y las parcelas (lotes internos de hectáreas) SIEMPRE se dibujen con bordes visibles en el mapa.",
+      "Consumir el 'boundary' real entregado por el backend FastAPI (GET /v1/fields) para Establecimiento La Posta (Demo) y cualquier campo futuro.",
+      "Pintar cada parcela con la escala agronómica de 7 bandas de NDVI (#b45309 ocre -> #14532d verde oscuro).",
+      "Actualizar el color de las parcelas en tiempo real al mover el timeline del TimelapseController o darle Play.",
+      "Mostrar tooltip interactivo con NDVI numérico, fecha de observación satelital, hectáreas y clima.",
+      "Integrar vgpu (WebGPU) para realce visual en la vista Maqueta 3D / aislada del lote."
+    ],
+    "out": [
+      "Edición manual de vértices en pantalla (dibujar polígonos a mano).",
+      "Sustituir el motor de tiles cartográficos mundiales por un motor WebGPU desde cero."
+    ]
+  },
+
+  "user_journeys": [
+    {
+      "id": "UJ-01",
+      "actor": "Usuario / Evaluador",
+      "journey": "Abre la aplicación -> Inmediatamente ve el campo delimitado con su forma poligonal en Pergamino -> Observa las parcelas internas coloreadas según su NDVI.",
+      "acceptance_criteria": [
+        "El perímetro del campo es 100% visible con línea nítida sobre cualquier estilo de mapa (Canvas blanco, Satélite, Calles).",
+        "Las parcelas internas cubren la superficie de hectáreas y tienen color asignado según su nivel de vigor vegetal.",
+        "No se producen parpadeos ni capas ocultas detrás de los tiles de Esri."
+      ]
+    },
+    {
+      "id": "UJ-02",
+      "actor": "Usuario / Evaluador",
+      "journey": "Mueve el slider del timeline o presiona Reproducir -> Ve cómo las parcelas van cambiando de color de acuerdo a las observaciones satelitales del backend.",
+      "acceptance_criteria": [
+        "El cambio de color en las parcelas ocurre fluidamente en cada cambio de fecha.",
+        "En fechas con observación satelital (ej. 2024-02-08), el NDVI y color reflejan la medición exacta de Sentinel-2.",
+        "El tooltip al pasar el mouse indica la fecha activa y el estado del cultivo."
+      ]
+    },
+    {
+      "id": "UJ-03",
+      "actor": "Usuario / Evaluador",
+      "journey": "Hace clic en 'Maqueta 3D' o 'Aislar en 3D' -> Visualiza la parcela aislada en 3D con relieve y shaders WebGPU/vgpu.",
+      "acceptance_criteria": [
+        "La vista aislada 3D muestra el relieve y los lotes con textura y shader dinámico.",
+        "Permite rotar con controles orbitales y alternar capas agronómicas."
+      ]
+    }
+  ],
+
+  "business_rules": [
+    "BR-01: Todo campo debe mostrar su perímetro exterior delimitado (límite catastral).",
+    "BR-02: Las parcelas internas deben sumar las hectáreas declaradas del campo.",
+    "BR-03: Los colores deben regirse por la escala NDVI de 7 bandas agronómica estándar.",
+    "BR-04: La renderización vectorial debe ser resistente a la carga asíncrona del backend y cambios de estilo de mapa.",
+    "BR-05: El uso de vgpu (WebGPU) debe tener graceful fallback si el navegador no soporta la API navigator.gpu."
+  ]
+}
