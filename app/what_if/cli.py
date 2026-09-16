@@ -414,10 +414,14 @@ def main() -> None:
         description="CLI del Optimizador Multicultivo What-If (TERRIA v2.2)"
     )
     parser.add_argument("-i", "--interactive", action="store_true", help="Iniciar el asistente interactivo paso a paso guiado en consola")
+    parser.add_argument("--preset", type=str, choices=list(PRESETS.keys()), help="Preset de lote agrícola real (1=Marcos Juárez, 2=Federación, 3=Pergamino, 4=Venado Tuerto, 5=Charata, 6=Tres Arroyos)")
+    parser.add_argument("--lat", type=float, help="Latitud del centroide del campo (ej: -32.70)")
+    parser.add_argument("--lon", type=float, help="Longitud del centroide del campo (ej: -62.10)")
+    parser.add_argument("--ha", type=float, default=200.0, help="Superficie del lote en hectáreas (default: 200)")
     parser.add_argument("--field-id", type=str, help="UUID del campo en el store de campos")
     parser.add_argument("--geojson", type=str, help="Geometría en formato GeoJSON")
     parser.add_argument("--coords", type=str, help="Puntos en formato 'lon,lat;lon,lat;...'")
-    parser.add_argument("--name", type=str, default="Lote Evaluación", help="Nombre del lote")
+    parser.add_argument("--name", type=str, default=None, help="Nombre del lote")
     parser.add_argument("--year", type=int, default=2023, help="Campaña agrícola (ej: 2023)")
     parser.add_argument("--crop", type=str, default=None, help="Cultivo específico a contrastar (opcional)")
     parser.add_argument("--real-crop", type=str, default="soja_1ra", help="Cultivo real cosechado")
@@ -452,22 +456,35 @@ def main() -> None:
                 print(f"  * {k}: {u}")
         return
 
-    # Modo Campo Persistido
-    if args.field_id:
+    # Modo Preset
+    if args.preset:
+        p = PRESETS[args.preset]
+        lot_name = args.name or p["name"]
+        surface_ha = float(p["ha"]) if args.ha == 200.0 else args.ha
+        geom_data = _box_from_centroid(p["lat"], p["lon"], surface_ha)
+        field_uuid = None
+        args.real_crop = p.get("real_crop", args.real_crop)
+        args.real_margin = float(p.get("real_margin", args.real_margin))
+        args.year = p.get("year", args.year)
+    elif args.field_id:
         store = get_field_store()
         try:
             f_uuid = UUID(args.field_id)
             stored = store.get(f_uuid)
             geom_data = stored.value.boundary
-            lot_name = stored.value.name
+            lot_name = args.name or stored.value.name
             field_uuid = f_uuid
         except Exception as e:
             print(f"Error al cargar campo con ID {args.field_id}: {e}")
             sys.exit(1)
+    elif args.lat is not None and args.lon is not None:
+        lot_name = args.name or f"Lote ({args.lat:.4f}, {args.lon:.4f})"
+        geom_data = _box_from_centroid(args.lat, args.lon, args.ha)
+        field_uuid = None
     elif args.geojson:
         try:
             geom_data = json.loads(args.geojson)
-            lot_name = args.name
+            lot_name = args.name or "Lote GeoJSON"
             field_uuid = None
         except Exception as e:
             print(f"Error al parsear GeoJSON: {e}")
@@ -479,10 +496,11 @@ def main() -> None:
             if len(parts) >= 2:
                 pairs.append([parts[0], parts[1]])
         geom_data = pairs
-        lot_name = args.name
+        lot_name = args.name or "Lote Coordenadas"
         field_uuid = None
     else:
         # Por defecto lote Federación
+        lot_name = args.name or "Lote Federación Mandisoví"
         geom_data = [
             [-58.053002, -30.743134],
             [-58.044891, -30.736454],
@@ -490,8 +508,8 @@ def main() -> None:
             [-58.045578, -30.747746],
             [-58.053002, -30.743134],
         ]
-        lot_name = args.name
         field_uuid = None
+
 
     print(f"\n[*] Ejecutando optimización multicultivo What-If para '{lot_name}' (evaluando 10 granos SAGyP)...")
     res = run_what_if_simulation(
