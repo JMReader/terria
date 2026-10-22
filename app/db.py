@@ -22,10 +22,12 @@ def normalize_url(url: str) -> str:
 
 
 def get_engine() -> Engine:
-    """Engine compartido para Supabase Postgres.
+    """Engine compartido para Supabase / Neon Postgres.
 
-    `NullPool` + `prepare_threshold=None`: requerido por el pooler transaccional
-    de Supabase (:6543), que no soporta prepared statements ni estado de sesión.
+    `NullPool` + `prepare_threshold=None`: requerido por el pooler transaccional,
+    que no soporta prepared statements ni estado de sesión.
+    `options: -c search_path=public,extensions` garantiza la resolución de tipos y
+    funciones de PostGIS (geography, ST_AsGeoJSON, etc.).
     """
     global _engine
     if _engine is None:
@@ -34,7 +36,10 @@ def get_engine() -> Engine:
         _engine = create_engine(
             normalize_url(settings.database_url or ""),
             poolclass=NullPool,
-            connect_args={"prepare_threshold": None},
+            connect_args={
+                "prepare_threshold": None,
+                "options": "-c search_path=public,extensions",
+            },
             echo=settings.terria_db_echo,
         )
     return _engine
